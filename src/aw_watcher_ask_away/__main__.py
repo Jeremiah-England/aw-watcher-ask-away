@@ -11,7 +11,6 @@ from tkinter import simpledialog
 import aw_core
 import aw_transform
 from aw_client.client import ActivityWatchClient
-from aw_transform.filter_period_intersect import period_union
 
 system_timezone = datetime.datetime.now().astimezone().tzinfo
 
@@ -98,8 +97,6 @@ def get_afk_events_to_note(seconds: float, durration_thresh: float, client: Acti
     non_afk_events = squash_overlaps([e for e in events if not is_afk(e)])
     pseudo_afk_events = list(get_gaps(non_afk_events))
 
-    # Remove overlaps between AFK events. This is needed after testing the app without it.
-    # afk_events = aw_transform.period_union([event for event in events if is_afk(event)], [])
     # Merge close events. This sounds like a good idea but I haven't tested to see if it is really needed.
     pseudo_afk_events = aw_transform.heartbeat_reduce(pseudo_afk_events, pulsetime=10)
     buffered_now = get_utc_now() - datetime.timedelta(seconds=seconds)
@@ -112,7 +109,7 @@ def get_afk_events_to_note(seconds: float, durration_thresh: float, client: Acti
 def prompt(event: aw_core.Event):
     start_time_str = event.timestamp.astimezone(system_timezone).strftime("%I:%M")
     end_time_str = (event.timestamp + event.duration).astimezone(system_timezone).strftime("%I:%M")
-    prompt = f"What were you doing from {start_time_str} - {end_time_str} ({event.duration.seconds / 60:f0.1} minutes)?"
+    prompt = f"What were you doing from {start_time_str} - {end_time_str} ({event.duration.seconds / 60:.1f} minutes)?"
     title = "AFK Checkin"
 
     return simpledialog.askstring(title, prompt)

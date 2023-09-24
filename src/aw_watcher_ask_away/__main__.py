@@ -70,7 +70,7 @@ def main():
     )
     with client:
         state = get_state_retries(client)
-        logger.info("Succesfully connected to the server.")
+        logger.info("Successfully connected to the server.")
 
         while True:
             for event in state.get_afk_events_to_note(seconds=args.depth * 60, durration_thresh=args.length * 60):

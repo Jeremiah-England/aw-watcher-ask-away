@@ -51,6 +51,9 @@ def get_gaps(events: list[aw_core.Event]):
             yield aw_core.Event(None, first_end, second.timestamp - first_end)
 
 
+# TODO: This class needs to be unit testable.
+# There are a lot of edge casesto handle.
+# Also need to update the debug logs so it is trivial to create unit tests from issues that happen.
 class AWAskAwayState:
     def __init__(self, client: ActivityWatchClient):
         self.client = client
@@ -105,6 +108,10 @@ class AWAskAwayState:
         self.client.insert_event(self.bucket_id, event)
 
 
+    # TODO: Handle this case which caused me to need to say what I did twice.
+    # 2023-09-24 09:00:19 [DEBUG]: Got events from the server: [                                                                                              ('2023-09-24T09:00:06.384000-04:00', 'not-afk'),                                                                                           ('2023-09-24T08:53:32.497000-04:00', 'afk'), ('2023-09-24T08:53:32.497000-04:00', 'afk'), ('2023-09-24T08:53:07.001000-04:00', 'not-afk'), ('2023-09-24T08:53:07.001000-04:00', 'not-afk'), ('2023-09-24T08:47:08.600000-04:00', 'afk'), ('2023-09-24T08:47:08.600000-04:00', 'afk'), ('2023-09-24T08:43:36.555000-04:00', 'not-afk'), ('2023-09-24T07:31:55.840000-04:00', 'afk'), ('2023-09-24T07:31:55.840000-04:00', 'afk')]  (aw_watcher_ask_away.core:113)  # noqa: E501
+    # 2023-09-24 09:04:59 [DEBUG]: Got events from the server: [('2023-09-24T09:04:53.758000-04:00', 'not-afk'), ('2023-09-24T09:00:06.383000-04:00', 'afk'), ('2023-09-24T09:00:06.383000-04:00', 'not-afk'), ('2023-09-24T09:00:06.383000-04:00', 'afk'), ('2023-09-24T09:00:06.383000-04:00', 'afk'), ('2023-09-24T08:53:32.497000-04:00', 'afk'), ('2023-09-24T08:53:32.497000-04:00', 'afk'), ('2023-09-24T08:53:07.001000-04:00', 'not-afk'), ('2023-09-24T08:53:07.001000-04:00', 'not-afk'), ('2023-09-24T08:47:08.600000-04:00', 'afk')]  (aw_watcher_ask_away.core:113)  # noqa: E501
+    # Removing heartbeat_reduce seems like it would fix the issue but is that the right behavior?
     def get_afk_events_to_note(self, seconds: float, durration_thresh: float):
         """Check whether we recently finished a large AFK event."""
         try:

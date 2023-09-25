@@ -116,7 +116,10 @@ class AWAskAwayState:
         """Check whether we recently finished a large AFK event."""
         try:
             events = self.client.get_events(self.afk_bucket_id, limit=10)
-            events_log = [(e.timestamp.astimezone(LOCAL_TIMEZONE).isoformat(), e.data["status"]) for e in events]
+            events_log = [
+                (e.timestamp.astimezone(LOCAL_TIMEZONE).isoformat(), e.duration.seconds, e.data["status"])
+                for e in events
+            ]
             logger.debug(f"Got events from the server: {events_log}")
         except HTTPError:
             logger.exception("Failed to get events from the server.")

@@ -1,6 +1,5 @@
 # ruff: noqa: EM101, EM102
 import argparse
-import datetime
 import time
 from tkinter import simpledialog
 
@@ -9,9 +8,7 @@ from aw_client.client import ActivityWatchClient
 from aw_core.log import setup_logging
 from requests.exceptions import ConnectionError
 
-from aw_watcher_ask_away.core import WATCHER_NAME, AWAskAwayState, AWWatcherAskAwayError, logger
-
-LOCAL_TIMEZONE = datetime.datetime.now().astimezone().tzinfo
+from aw_watcher_ask_away.core import LOCAL_TIMEZONE, WATCHER_NAME, AWAskAwayState, AWWatcherAskAwayError, logger
 
 
 def prompt(event: aw_core.Event):

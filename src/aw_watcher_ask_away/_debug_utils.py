@@ -6,7 +6,7 @@ from itertools import pairwise
 import aw_transform
 from aw_client.client import ActivityWatchClient
 
-from aw_watcher_ask_away.core import AWAskAwayState
+from aw_watcher_ask_away.core import AWAskAwayClient
 
 
 @cache
@@ -20,7 +20,7 @@ def find_overlapping_events():
     If any of these exist it means the user was asked for something twice which is annoying and should be fixed.
     """
     with get_client() as client:
-        state = AWAskAwayState(client)
+        state = AWAskAwayClient(client)
         for e1, e2 in pairwise(aw_transform.sort_by_timestamp(client.get_events(state.bucket_id, limit=100))):
             if e1.timestamp + e1.duration > e2.timestamp:
                 print("---" * 10)

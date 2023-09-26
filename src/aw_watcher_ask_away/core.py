@@ -2,6 +2,8 @@
 import datetime
 import logging
 from collections import deque
+from collections.abc import Iterable
+from copy import deepcopy
 from functools import cached_property
 from itertools import pairwise
 from typing import Any
@@ -36,7 +38,8 @@ def is_afk(event: aw_core.Event) -> bool:
 
 
 def squash_overlaps(events: list[aw_core.Event]) -> list[aw_core.Event]:
-    return aw_transform.sort_by_timestamp(aw_transform.period_union(events, []))
+    # Make a deep copy because the period_union function edits the events instead of returning new ones.
+    return aw_transform.sort_by_timestamp(aw_transform.period_union(deepcopy(events), []))
 
 
 def get_utc_now():
@@ -54,7 +57,7 @@ def get_gaps(events: list[aw_core.Event]):
 # TODO: This class needs to be unit testable.
 # There are a lot of edge casesto handle.
 # Also need to update the debug logs so it is trivial to create unit tests from issues that happen.
-class AWAskAwayState:
+class AWAskAwayClient:
     def __init__(self, client: ActivityWatchClient):
         self.client = client
         self.bucket_id = f"{WATCHER_NAME}_{self.client.client_hostname}"
@@ -63,17 +66,48 @@ class AWAskAwayState:
             # TODO: Look into why aw-watcher-afk uses queued=True here.
             client.create_bucket(self.bucket_id, event_type="afktask")
 
-        self.recent_events: deque[aw_core.Event] = deque(maxlen=10)
-        self.recent_events.extend(aw_transform.sort_by_timestamp(client.get_events(self.bucket_id, limit=10)))
-        """The recent events we have posted to the aw-watcher-ask-away bucket.
 
-        This is used to avoid asking the user to log an absence that they have already logged."""
+        recent_events = deque(maxlen=10)
+        recent_events.extend(aw_transform.sort_by_timestamp(client.get_events(self.bucket_id, limit=10)))
+        self.state = AWAskAwayState(recent_events)
 
         self.afk_bucket_id = find_afk_bucket(self._all_buckets)
 
     @cached_property
     def _all_buckets(self):
         return self.client.get_buckets()
+
+    def post_event(self, event: aw_core.Event, message: str):
+        self.state.add_event(event, message)
+        self.client.insert_event(self.bucket_id, event)
+
+
+    def get_new_afk_events_to_note(self, seconds: float, durration_thresh: float):
+        """Check whether we recently finished a large AFK event.
+
+        Parameters
+        ----------
+        seconds : float
+            The number of seconds to look into the past for events.
+        durration_thresh : float
+            The number of seconds you need to be away before reporting on it.
+        """
+        try:
+            events = self.client.get_events(self.afk_bucket_id, limit=10)
+            if is_afk(events[0]):  # Currently AFK, wait to bring up the prompt.
+                return
+            yield from self.state.get_unseen_afk_events(events, seconds, durration_thresh)
+        except HTTPError:
+            logger.exception("Failed to get events from the server.")
+            return
+
+
+class AWAskAwayState:
+    def __init__(self, recent_events: Iterable[aw_core.Event]):
+        self.recent_events = recent_events if isinstance(recent_events, deque) else deque(recent_events, 10)
+        """The recent events we have posted to the aw-watcher-ask-away bucket.
+
+        This is used to avoid asking the user to log an absence that they have already logged."""
 
     def has_event(self, new: aw_core.Event, overlap_thresh: float = 0.95) -> bool:
         """Check whether we have already posted an event that overlaps with the new event.
@@ -99,34 +133,35 @@ class AWAskAwayState:
                 return True
         return False
 
-    def post_event(self, event: aw_core.Event, message: str):
+    def add_event(self, event: aw_core.Event, message: str):
         assert not self.has_event(event)  # noqa: S101
         event.data["message"] = message
         event["id"] = None  # Wipe the ID so we don't edit the AFK event.
         logger.debug(f"Posting event: {event}")
         self.recent_events.append(event)
-        self.client.insert_event(self.bucket_id, event)
 
 
     # TODO: Handle this case which caused me to need to say what I did twice.
     # 2023-09-24 09:00:19 [DEBUG]: Got events from the server: [                                                                                              ('2023-09-24T09:00:06.384000-04:00', 'not-afk'),                                                                                           ('2023-09-24T08:53:32.497000-04:00', 'afk'), ('2023-09-24T08:53:32.497000-04:00', 'afk'), ('2023-09-24T08:53:07.001000-04:00', 'not-afk'), ('2023-09-24T08:53:07.001000-04:00', 'not-afk'), ('2023-09-24T08:47:08.600000-04:00', 'afk'), ('2023-09-24T08:47:08.600000-04:00', 'afk'), ('2023-09-24T08:43:36.555000-04:00', 'not-afk'), ('2023-09-24T07:31:55.840000-04:00', 'afk'), ('2023-09-24T07:31:55.840000-04:00', 'afk')]  (aw_watcher_ask_away.core:113)  # noqa: E501
     # 2023-09-24 09:04:59 [DEBUG]: Got events from the server: [('2023-09-24T09:04:53.758000-04:00', 'not-afk'), ('2023-09-24T09:00:06.383000-04:00', 'afk'), ('2023-09-24T09:00:06.383000-04:00', 'not-afk'), ('2023-09-24T09:00:06.383000-04:00', 'afk'), ('2023-09-24T09:00:06.383000-04:00', 'afk'), ('2023-09-24T08:53:32.497000-04:00', 'afk'), ('2023-09-24T08:53:32.497000-04:00', 'afk'), ('2023-09-24T08:53:07.001000-04:00', 'not-afk'), ('2023-09-24T08:53:07.001000-04:00', 'not-afk'), ('2023-09-24T08:47:08.600000-04:00', 'afk')]  (aw_watcher_ask_away.core:113)  # noqa: E501
     # Removing heartbeat_reduce seems like it would fix the issue but is that the right behavior?
-    def get_afk_events_to_note(self, seconds: float, durration_thresh: float):
-        """Check whether we recently finished a large AFK event."""
-        try:
-            events = self.client.get_events(self.afk_bucket_id, limit=10)
-            events_log = [
-                (e.timestamp.astimezone(LOCAL_TIMEZONE).isoformat(), e.duration.seconds, e.data["status"])
-                for e in events
-            ]
-            logger.debug(f"Got events from the server: {events_log}")
-        except HTTPError:
-            logger.exception("Failed to get events from the server.")
-            return
+    def get_unseen_afk_events(self, events: list[aw_core.Event], recency_thresh: float, durration_thresh: float):
+        """Check whether we recently finished a large AFK event.
 
-        if is_afk(events[0]):  # Currently AFK, wait to bring up the prompt.
-            return
+        Parameters
+        ----------
+        events : list[aw_core.Event]
+            The events to check for AFK events.
+        seconds : float
+            Events more than this many seconds ago will be ignored.
+        durration_thresh : float
+            Events with a durration less than this many seconds will be ignored.
+        """
+        events_log = [
+            (e.timestamp.astimezone(LOCAL_TIMEZONE).isoformat(), e.duration.seconds, e.data["status"])
+            for e in events
+        ]
+        logger.debug(f"Checking for unseen in: {events_log}")
 
         # Use gaps in non-afk events instead of the afk-events themselves to handle when the computer
         # is suspended or powered off.
@@ -138,7 +173,7 @@ class AWAskAwayState:
         pseudo_afk_events = aw_transform.heartbeat_reduce(pseudo_afk_events, pulsetime=10)
         logger.debug(f"Events after heartbeat_reduce: {len(pseudo_afk_events)}")
         pseudo_afk_events = [e for e in pseudo_afk_events if not self.has_event(e)]
-        buffered_now = get_utc_now() - datetime.timedelta(seconds=seconds)
+        buffered_now = get_utc_now() - datetime.timedelta(seconds=recency_thresh)
         for event in pseudo_afk_events:
             long_enough = event.duration.seconds > durration_thresh
             recent_enough = event.timestamp + event.duration > buffered_now

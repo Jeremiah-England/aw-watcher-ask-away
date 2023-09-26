@@ -8,7 +8,7 @@ from aw_client.client import ActivityWatchClient
 from aw_core.log import setup_logging
 from requests.exceptions import ConnectionError
 
-from aw_watcher_ask_away.core import LOCAL_TIMEZONE, WATCHER_NAME, AWAskAwayState, AWWatcherAskAwayError, logger
+from aw_watcher_ask_away.core import LOCAL_TIMEZONE, WATCHER_NAME, AWAskAwayClient, AWWatcherAskAwayError, logger
 
 
 def prompt(event: aw_core.Event):
@@ -31,7 +31,7 @@ def get_state_retries(client: ActivityWatchClient):
         try:
             # This works because the constructor of AWAskAwayState tries to get bucket names.
             # If it didn't we'd need to do something else here.
-            return AWAskAwayState(client)
+            return AWAskAwayClient(client)
         except ConnectionError:
             logger.exception("Cannot connect to client.")
             time.sleep(10)  # 10 * 10 = wait for 100s before giving up.
@@ -70,7 +70,7 @@ def main():
         logger.info("Successfully connected to the server.")
 
         while True:
-            for event in state.get_afk_events_to_note(seconds=args.depth * 60, durration_thresh=args.length * 60):
+            for event in state.get_new_afk_events_to_note(seconds=args.depth * 60, durration_thresh=args.length * 60):
                 if response := prompt(event):
                     logger.info(response)
                     state.post_event(event, response)

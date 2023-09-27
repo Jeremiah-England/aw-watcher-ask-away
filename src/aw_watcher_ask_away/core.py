@@ -154,7 +154,7 @@ class AWAskAwayState:
             Events with a durration less than this many seconds will be ignored.
         """
         events_log = [
-            (e.timestamp.astimezone(LOCAL_TIMEZONE).isoformat(), e.duration.seconds, e.data["status"])
+            (e.timestamp.astimezone(LOCAL_TIMEZONE).isoformat(), e.duration.total_seconds(), e.data["status"])
             for e in events
         ]
         logger.debug(f"Checking for unseen in: {events_log}")

@@ -1,7 +1,7 @@
 # ruff: noqa: EM101, EM102
 import argparse
 import time
-from tkinter import simpledialog
+from tkinter import messagebox, simpledialog
 
 import aw_core
 from aw_client.client import ActivityWatchClient
@@ -62,19 +62,25 @@ def main():
         log_file=True,
     )
 
-    client = ActivityWatchClient(  # pyright: ignore[reportPrivateImportUsage]
-        client_name=WATCHER_NAME, testing=args.testing
-    )
-    with client:
-        state = get_state_retries(client)
-        logger.info("Successfully connected to the server.")
+    try:
+        client = ActivityWatchClient(  # pyright: ignore[reportPrivateImportUsage]
+            client_name=WATCHER_NAME, testing=args.testing
+        )
+        with client:
+            state = get_state_retries(client)
+            logger.info("Successfully connected to the server.")
 
-        while True:
-            for event in state.get_new_afk_events_to_note(seconds=args.depth * 60, durration_thresh=args.length * 60):
-                if response := prompt(event):
-                    logger.info(response)
-                    state.post_event(event, response)
-            time.sleep(args.frequency)
+            while True:
+                for event in state.get_new_afk_events_to_note(
+                    seconds=args.depth * 60, durration_thresh=args.length * 60
+                ):
+                    if response := prompt(event):
+                        logger.info(response)
+                        state.post_event(event, response)
+                time.sleep(args.frequency)
+    except Exception as e:
+        messagebox.showerror("AW Watcher Ask Away: Error", f"An unhandled exception occurred: {e}")
+        raise
 
 
 if __name__ == "__main__":

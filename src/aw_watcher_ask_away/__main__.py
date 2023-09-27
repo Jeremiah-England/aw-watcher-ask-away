@@ -41,10 +41,10 @@ def get_state_retries(client: ActivityWatchClient):
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument(
-        "--depth", type=float, default=5, help="The number of minutes to look into the past for events."
+        "--depth", type=float, default=10, help="The number of minutes to look into the past for events."
     )
     parser.add_argument(
-        "--frequency", type=float, default=3, help="The number of seconds to wait before checking for AFK events again."
+        "--frequency", type=float, default=5, help="The number of seconds to wait before checking for AFK events again."
     )
     parser.add_argument(
         "--length", type=float, default=3, help="The number of minutes you need to be away before reporting on it."

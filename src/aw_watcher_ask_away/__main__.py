@@ -47,7 +47,7 @@ def main():
         "--frequency", type=float, default=5, help="The number of seconds to wait before checking for AFK events again."
     )
     parser.add_argument(
-        "--length", type=float, default=3, help="The number of minutes you need to be away before reporting on it."
+        "--length", type=float, default=5, help="The number of minutes you need to be away before reporting on it."
     )
     parser.add_argument("--testing", action="store_true", help="Run in testing mode.")
     parser.add_argument("--verbose", action="store_true", help="I want to see EVERYTHING!")

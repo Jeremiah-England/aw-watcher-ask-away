@@ -141,10 +141,6 @@ class AWAskAwayState:
         self.recent_events.append(event)
 
 
-    # TODO: Handle this case which caused me to need to say what I did twice.
-    # 2023-09-24 09:00:19 [DEBUG]: Got events from the server: [                                                                                              ('2023-09-24T09:00:06.384000-04:00', 'not-afk'),                                                                                           ('2023-09-24T08:53:32.497000-04:00', 'afk'), ('2023-09-24T08:53:32.497000-04:00', 'afk'), ('2023-09-24T08:53:07.001000-04:00', 'not-afk'), ('2023-09-24T08:53:07.001000-04:00', 'not-afk'), ('2023-09-24T08:47:08.600000-04:00', 'afk'), ('2023-09-24T08:47:08.600000-04:00', 'afk'), ('2023-09-24T08:43:36.555000-04:00', 'not-afk'), ('2023-09-24T07:31:55.840000-04:00', 'afk'), ('2023-09-24T07:31:55.840000-04:00', 'afk')]  (aw_watcher_ask_away.core:113)  # noqa: E501
-    # 2023-09-24 09:04:59 [DEBUG]: Got events from the server: [('2023-09-24T09:04:53.758000-04:00', 'not-afk'), ('2023-09-24T09:00:06.383000-04:00', 'afk'), ('2023-09-24T09:00:06.383000-04:00', 'not-afk'), ('2023-09-24T09:00:06.383000-04:00', 'afk'), ('2023-09-24T09:00:06.383000-04:00', 'afk'), ('2023-09-24T08:53:32.497000-04:00', 'afk'), ('2023-09-24T08:53:32.497000-04:00', 'afk'), ('2023-09-24T08:53:07.001000-04:00', 'not-afk'), ('2023-09-24T08:53:07.001000-04:00', 'not-afk'), ('2023-09-24T08:47:08.600000-04:00', 'afk')]  (aw_watcher_ask_away.core:113)  # noqa: E501
-    # Removing heartbeat_reduce seems like it would fix the issue but is that the right behavior?
     def get_unseen_afk_events(self, events: list[aw_core.Event], recency_thresh: float, durration_thresh: float):
         """Check whether we recently finished a large AFK event.
 
@@ -168,10 +164,6 @@ class AWAskAwayState:
         non_afk_events = squash_overlaps([e for e in events if not is_afk(e)])
         pseudo_afk_events = list(get_gaps(non_afk_events))
 
-        # Merge close events. This sounds like a good idea but I haven't tested to see if it is really needed.
-        logger.debug(f"Events before heartbeat_reduce: {len(pseudo_afk_events)}")
-        pseudo_afk_events = aw_transform.heartbeat_reduce(pseudo_afk_events, pulsetime=10)
-        logger.debug(f"Events after heartbeat_reduce: {len(pseudo_afk_events)}")
         pseudo_afk_events = [e for e in pseudo_afk_events if not self.has_event(e)]
         buffered_now = get_utc_now() - datetime.timedelta(seconds=recency_thresh)
         for event in pseudo_afk_events:

@@ -9,10 +9,6 @@ This [ActivityWatch](https://activitywatch.net) "watcher" asks you what you were
 
 ## Installation
 
-Currently, clone the repository and run `pipx install .` in the root directory.
-
-Eventually, we should publish it to PyPi so people can do this:
-
 ```console
 pipx install aw-watcher-ask-away
 ```

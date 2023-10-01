@@ -16,8 +16,10 @@ from requests.exceptions import HTTPError
 WATCHER_NAME = "aw-watcher-ask-away"
 LOCAL_TIMEZONE = datetime.datetime.now().astimezone().tzinfo
 
+
 class AWWatcherAskAwayError(Exception):
     pass
+
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -66,7 +68,6 @@ class AWAskAwayClient:
             # TODO: Look into why aw-watcher-afk uses queued=True here.
             client.create_bucket(self.bucket_id, event_type="afktask")
 
-
         recent_events = deque(maxlen=10)
         recent_events.extend(aw_transform.sort_by_timestamp(client.get_events(self.bucket_id, limit=10)))
         self.state = AWAskAwayState(recent_events)
@@ -80,7 +81,6 @@ class AWAskAwayClient:
     def post_event(self, event: aw_core.Event, message: str):
         self.state.add_event(event, message)
         self.client.insert_event(self.bucket_id, event)
-
 
     def get_new_afk_events_to_note(self, seconds: float, durration_thresh: float):
         """Check whether we recently finished a large AFK event.
@@ -139,7 +139,6 @@ class AWAskAwayState:
         event["id"] = None  # Wipe the ID so we don't edit the AFK event.
         logger.debug(f"Posting event: {event}")
         self.recent_events.append(event)
-
 
     def get_unseen_afk_events(self, events: list[aw_core.Event], recency_thresh: float, durration_thresh: float):
         """Check whether we recently finished a large AFK event.

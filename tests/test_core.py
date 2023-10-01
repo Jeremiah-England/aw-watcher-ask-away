@@ -24,7 +24,6 @@ def _tuple_to_event(tup: TupleEvent) -> aw_core.Event:
     return aw_core.Event(timestamp=timestamp, duration=tup[1], data={"status": tup[2]})
 
 
-
 def _event_to_tuple(event: aw_core.Event) -> tuple[int, int]:
     return (int(event.timestamp.timestamp()), event.duration.seconds)
 
@@ -53,7 +52,9 @@ def test_get_unseen_afk_events_initial():
     events = list(state.get_unseen_afk_events([*init_events, _tuple_to_event((now, 10, NOT_AFK))], 10, 21))
     assert len(events) == 1
     assert events[0].timestamp == FIRST_DATE + datetime.timedelta(seconds=80 + 100)
-    assert int(events[0].duration.total_seconds()) == int((now - (FIRST_DATE + datetime.timedelta(seconds=80 + 100))).total_seconds())
+    assert int(events[0].duration.total_seconds()) == int(
+        (now - (FIRST_DATE + datetime.timedelta(seconds=80 + 100))).total_seconds()
+    )
 
 
 def test_double_ask_1():

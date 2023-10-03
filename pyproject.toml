@@ -23,9 +23,9 @@ dependencies = ["aw-client"]
 aw-watcher-ask-away = "aw_watcher_ask_away.__main__:main"
 
 [project.urls]
-Documentation = "https://github.com/unknown/aw-watcher-ask-away#readme"
-Issues = "https://github.com/unknown/aw-watcher-ask-away/issues"
-Source = "https://github.com/unknown/aw-watcher-ask-away"
+Documentation = "https://github.com/Jeremiah-England/aw-watcher-ask-away#readme"
+Issues = "https://github.com/Jeremiah-England/aw-watcher-ask-away/issues"
+Source = "https://github.com/Jeremiah-England/aw-watcher-ask-away"
 
 [tool.hatch.version]
 path = "src/aw_watcher_ask_away/__about__.py"

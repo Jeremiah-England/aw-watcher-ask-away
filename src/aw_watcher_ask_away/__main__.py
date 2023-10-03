@@ -1,13 +1,14 @@
 # ruff: noqa: EM101, EM102
 import argparse
 import time
-from tkinter import messagebox, simpledialog
+from tkinter import messagebox
 
 import aw_core
 from aw_client.client import ActivityWatchClient
 from aw_core.log import setup_logging
 from requests.exceptions import ConnectionError
 
+import aw_watcher_ask_away.dialog as aw_dialog
 from aw_watcher_ask_away.core import LOCAL_TIMEZONE, WATCHER_NAME, AWAskAwayClient, AWWatcherAskAwayError, logger
 
 
@@ -19,7 +20,7 @@ def prompt(event: aw_core.Event):
     prompt = f"What were you doing from {start_time_str} - {end_time_str} ({event.duration.seconds / 60:.1f} minutes)?"
     title = "AFK Checkin"
 
-    return simpledialog.askstring(title, prompt)
+    return aw_dialog.ask_string(title, prompt)
 
 
 def get_state_retries(client: ActivityWatchClient):

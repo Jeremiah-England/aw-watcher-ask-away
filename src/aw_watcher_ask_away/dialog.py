@@ -75,17 +75,15 @@ class AWAskAwayDialog(simpledialog.Dialog):
         open_link("http://localhost:5600/#/timeline")
 
     def remove_word(self, event=None):  # noqa: ARG002
-        # Get the current entry content
-        text = self.entry.get()
-
         # Split into words and remove the last word
-        words = text.split()
+        words = self.entry.get().split()
         if words:
             words.pop()
 
         # Update the entry content
         self.entry.delete(0, tk.END)
-        self.entry.insert(0, " ".join(words) + " ")
+        if words:
+            self.entry.insert(0, " ".join(words) + " ")
 
     def remove_to_start(self, event=None):  # noqa: ARG002
         # TODO: Tehcnically should only remove to the start of the line from where the cursor is.

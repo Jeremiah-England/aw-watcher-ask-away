@@ -37,13 +37,19 @@ class AWAskAwayDialog(simpledialog.Dialog):
         issue_label.grid(row=1, padx=5, sticky=tk.W, column=1)
         issue_label.bind("<Button-1>", self.open_an_issue)
 
-        # Add some remove-word shortcuts
+        # Text editing shortcuts
         self.bind("<Control-BackSpace>", self.remove_word)
-        self.bind("<Control-w>", self.remove_word)
         self.bind("<Control-u>", self.remove_to_start)
+        self.bind("<Control-w>", self.remove_word)
+
+        # Open web interface shortcut
         self.bind("<Control-o>", self.open_web_interface)
+
+        # History navigation shotcuts
         self.bind("<Up>", self.previous_entry)
         self.bind("<Down>", self.next_entry)
+        self.bind("<Control-j>", self.next_entry)
+        self.bind("<Control-k>", self.previous_entry)
 
         return self.entry
 

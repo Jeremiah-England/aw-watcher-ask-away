@@ -14,7 +14,7 @@ class AWAskAwayDialog(simpledialog.Dialog):
     def __init__(self, title: str, prompt: str, history: list[str]) -> None:
         self.prompt = prompt
         self.history = history
-        self.history_index = 0
+        self.history_index = len(history)
         super().__init__(None, title)
 
     def body(self, master):
@@ -52,12 +52,12 @@ class AWAskAwayDialog(simpledialog.Dialog):
         self.entry.insert(0, text)
 
     def previous_entry(self, event=None):  # noqa: ARG002
-        self.history_index -= 1
-        self.set_text(self.history[self.history_index % len(self.history)])
+        self.history_index = max(0, self.history_index - 1)
+        self.set_text(self.history[self.history_index])
 
     def next_entry(self, event=None):  # noqa: ARG002
-        self.history_index += 1
-        self.set_text(self.history[self.history_index % len(self.history)])
+        self.history_index = min(len(self.history) - 1, self.history_index + 1)
+        self.set_text(self.history[self.history_index])
 
     def open_an_issue(self, event=None):  # noqa: ARG002
         open_link("https://github.com/Jeremiah-England/aw-watcher-ask-away/issues/new")

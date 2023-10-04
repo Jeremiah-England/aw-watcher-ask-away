@@ -116,6 +116,8 @@ class AWAskAwayDialog(simpledialog.Dialog):
         w.pack(side=tk.LEFT, padx=5, pady=5)
         w = tk.Button(box, text="Cancel", width=10, command=self.cancel)
         w.pack(side=tk.LEFT, padx=5, pady=5)
+
+        # TODO: Figure out a quick easy way to pick how long to go away for.
         w = tk.Button(
             box,
             text="Go away (1h)",

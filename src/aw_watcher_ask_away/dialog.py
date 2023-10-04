@@ -99,16 +99,16 @@ class AWAskAwayDialog(simpledialog.Dialog):
     def apply(self):
         self.result = self.entry.get()
 
-    def go_away(self):
+    def snooze(self):
         self.cancel()
-        logging.log(logging.INFO, "Going away for 1 hour.")
+        logging.log(logging.INFO, "Snoozing for 1 hour.")
         time.sleep(60 * 60)
 
     # @override (when we get to 3.12)
     def buttonbox(self):
         """The buttons at the bottom of the dialog.
 
-        This is overridden to add a "Go away" button.
+        This is overridden to add a "snooze" button.
         """
         box = ttk.Frame(self)
 
@@ -117,8 +117,8 @@ class AWAskAwayDialog(simpledialog.Dialog):
         w = ttk.Button(box, text="Cancel", width=10, command=self.cancel)
         w.pack(side=tk.LEFT, padx=5, pady=5)
 
-        # TODO: Figure out a quick easy way to pick how long to go away for.
-        w = ttk.Button(box, text="Go away (1h)", command=self.go_away)
+        # TODO: Figure out a quick easy way to pick how long to snooze for.
+        w = ttk.Button(box, text="Snooze (1h)", command=self.snooze)
         w.pack(side=tk.LEFT, padx=5, pady=5)
 
         self.bind("<Return>", self.ok)

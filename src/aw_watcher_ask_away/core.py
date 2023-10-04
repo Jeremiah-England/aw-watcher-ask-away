@@ -15,6 +15,8 @@ from requests.exceptions import HTTPError
 
 WATCHER_NAME = "aw-watcher-ask-away"
 LOCAL_TIMEZONE = datetime.datetime.now().astimezone().tzinfo
+DATA_KEY = "message"
+"""What field in the event data to store the user's message in."""
 
 
 class AWWatcherAskAwayError(Exception):
@@ -107,7 +109,9 @@ class AWAskAwayState:
         self.recent_events = recent_events if isinstance(recent_events, deque) else deque(recent_events, 10)
         """The recent events we have posted to the aw-watcher-ask-away bucket.
 
-        This is used to avoid asking the user to log an absence that they have already logged."""
+        This is used to avoid asking the user to log an absence that they have already logged.
+
+        Sorted from earliest to most recent."""
 
     def has_event(self, new: aw_core.Event, overlap_thresh: float = 0.95) -> bool:
         """Check whether we have already posted an event that overlaps with the new event.
@@ -135,7 +139,7 @@ class AWAskAwayState:
 
     def add_event(self, event: aw_core.Event, message: str):
         assert not self.has_event(event)  # noqa: S101
-        event.data["message"] = message
+        event.data[DATA_KEY] = message
         event["id"] = None  # Wipe the ID so we don't edit the AFK event.
         logger.debug(f"Posting event: {event}")
         self.recent_events.append(event)

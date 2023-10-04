@@ -1,6 +1,7 @@
 # ruff: noqa: EM101, EM102
 import argparse
 import time
+from collections.abc import Iterable
 from tkinter import messagebox
 
 import aw_core
@@ -9,10 +10,17 @@ from aw_core.log import setup_logging
 from requests.exceptions import ConnectionError
 
 import aw_watcher_ask_away.dialog as aw_dialog
-from aw_watcher_ask_away.core import LOCAL_TIMEZONE, WATCHER_NAME, AWAskAwayClient, AWWatcherAskAwayError, logger
+from aw_watcher_ask_away.core import (
+    DATA_KEY,
+    LOCAL_TIMEZONE,
+    WATCHER_NAME,
+    AWAskAwayClient,
+    AWWatcherAskAwayError,
+    logger,
+)
 
 
-def prompt(event: aw_core.Event):
+def prompt(event: aw_core.Event, recent_events: Iterable[aw_core.Event]):
     # TODO: Allow for customizing the prompt from the prompt interface.
     # TODO: Figure how why standard text editing keyboard shortcuts do not work. Maybe use something besides tkinter.
     start_time_str = event.timestamp.astimezone(LOCAL_TIMEZONE).strftime("%I:%M")
@@ -20,7 +28,7 @@ def prompt(event: aw_core.Event):
     prompt = f"What were you doing from {start_time_str} - {end_time_str} ({event.duration.seconds / 60:.1f} minutes)?"
     title = "AFK Checkin"
 
-    return aw_dialog.ask_string(title, prompt)
+    return aw_dialog.ask_string(title, prompt, [event.data[DATA_KEY] for event in recent_events])
 
 
 def get_state_retries(client: ActivityWatchClient):
@@ -75,7 +83,7 @@ def main():
                 for event in state.get_new_afk_events_to_note(
                     seconds=args.depth * 60, durration_thresh=args.length * 60
                 ):
-                    if response := prompt(event):
+                    if response := prompt(event, state.state.recent_events):
                         logger.info(response)
                         state.post_event(event, response)
                 time.sleep(args.frequency)

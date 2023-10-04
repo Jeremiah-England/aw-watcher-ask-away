@@ -11,8 +11,10 @@ def open_link(link: str):
 # TODO: This widget pops up off-center when using multiple screes on Linux, possibly other platforms.
 # See https://stackoverflow.com/questions/30312875/tkinter-winfo-screenwidth-when-used-with-dual-monitors/57866046#57866046
 class AWAskAwayDialog(simpledialog.Dialog):
-    def __init__(self, title: str, prompt: str) -> None:
+    def __init__(self, title: str, prompt: str, history: list[str]) -> None:
         self.prompt = prompt
+        self.history = history
+        self.history_index = 0
         super().__init__(None, title)
 
     def body(self, master):
@@ -40,9 +42,22 @@ class AWAskAwayDialog(simpledialog.Dialog):
         self.bind("<Control-w>", self.remove_word)
         self.bind("<Control-u>", self.remove_to_start)
         self.bind("<Control-o>", self.open_web_interface)
-        # TODO: Bind the up arrow to the previous entry.
+        self.bind("<Up>", self.previous_entry)
+        self.bind("<Down>", self.next_entry)
 
         return self.entry
+
+    def set_text(self, text: str):
+        self.entry.delete(0, tk.END)
+        self.entry.insert(0, text)
+
+    def previous_entry(self, event=None):  # noqa: ARG002
+        self.history_index -= 1
+        self.set_text(self.history[self.history_index % len(self.history)])
+
+    def next_entry(self, event=None):  # noqa: ARG002
+        self.history_index += 1
+        self.set_text(self.history[self.history_index % len(self.history)])
 
     def open_an_issue(self, event=None):  # noqa: ARG002
         open_link("https://github.com/Jeremiah-England/aw-watcher-ask-away/issues/new")
@@ -76,10 +91,10 @@ class AWAskAwayDialog(simpledialog.Dialog):
         self.result = self.entry.get()
 
 
-def ask_string(title: str, prompt: str):
-    d = AWAskAwayDialog(title, prompt)
+def ask_string(title: str, prompt: str, history: list[str]):
+    d = AWAskAwayDialog(title, prompt, history)
     return d.result
 
 
 if __name__ == "__main__":
-    print(ask_string("Testing testing", "123"))  # noqa: T201
+    print(ask_string("Testing testing", "123", ["1", "2", "3", "4"]))  # noqa: T201

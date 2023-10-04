@@ -1,7 +1,7 @@
 import logging
 import time
 import tkinter as tk
-from tkinter import simpledialog
+from tkinter import simpledialog, ttk
 
 logger = logging.getLogger(__name__)
 
@@ -25,20 +25,20 @@ class AWAskAwayDialog(simpledialog.Dialog):
     def body(self, master):
         # Prompt
         # Copied from the simpledialog source code.
-        w = tk.Label(master, text=self.prompt, justify=tk.LEFT)
+        w = ttk.Label(master, text=self.prompt, justify=tk.LEFT)
         w.grid(row=0, padx=5, sticky=tk.W)
 
         # Input field
-        self.entry = tk.Entry(master, name="entry", width=40)
+        self.entry = ttk.Entry(master, name="entry", width=40)
         self.entry.grid(row=1, padx=5, sticky=tk.W + tk.E)
 
         # README link
-        doc_label = tk.Label(master, text="Documentation", fg="blue", cursor="hand2", justify=tk.RIGHT)
+        doc_label = ttk.Label(master, text="Documentation", foreground="blue", cursor="hand2", justify=tk.RIGHT)
         doc_label.grid(row=0, padx=5, sticky=tk.W, column=1)
         doc_label.bind("<Button-1>", self.open_readme)
 
         # Issue link
-        issue_label = tk.Label(master, text="Report an issue", fg="blue", cursor="hand2", justify=tk.RIGHT)
+        issue_label = ttk.Label(master, text="Report an issue", foreground="blue", cursor="hand2", justify=tk.RIGHT)
         issue_label.grid(row=1, padx=5, sticky=tk.W, column=1)
         issue_label.bind("<Button-1>", self.open_an_issue)
 
@@ -110,24 +110,15 @@ class AWAskAwayDialog(simpledialog.Dialog):
 
         This is overridden to add a "Go away" button.
         """
-        box = tk.Frame(self)
+        box = ttk.Frame(self)
 
-        w = tk.Button(box, text="OK", width=10, command=self.ok, default=tk.ACTIVE)
+        w = ttk.Button(box, text="OK", width=10, command=self.ok, default=tk.ACTIVE)
         w.pack(side=tk.LEFT, padx=5, pady=5)
-        w = tk.Button(box, text="Cancel", width=10, command=self.cancel)
+        w = ttk.Button(box, text="Cancel", width=10, command=self.cancel)
         w.pack(side=tk.LEFT, padx=5, pady=5)
 
         # TODO: Figure out a quick easy way to pick how long to go away for.
-        w = tk.Button(
-            box,
-            text="Go away (1h)",
-            width=10,
-            command=self.go_away,
-            bg="#913831",
-            fg="white",
-            activebackground="#732a25",
-            activeforeground="white",
-        )
+        w = ttk.Button(box, text="Go away (1h)", command=self.go_away)
         w.pack(side=tk.LEFT, padx=5, pady=5)
 
         self.bind("<Return>", self.ok)

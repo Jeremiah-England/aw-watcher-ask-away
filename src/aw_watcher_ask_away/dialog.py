@@ -1,5 +1,9 @@
+import logging
+import time
 import tkinter as tk
 from tkinter import simpledialog
+
+logger = logging.getLogger(__name__)
 
 
 def open_link(link: str):
@@ -17,6 +21,7 @@ class AWAskAwayDialog(simpledialog.Dialog):
         self.history_index = len(history)
         super().__init__(None, title)
 
+    # @override (when we get to 3.12)
     def body(self, master):
         # Prompt
         # Copied from the simpledialog source code.
@@ -93,6 +98,40 @@ class AWAskAwayDialog(simpledialog.Dialog):
     # If you want to retrieve the entered text when the dialog closes:
     def apply(self):
         self.result = self.entry.get()
+
+    def go_away(self):
+        self.cancel()
+        logging.log(logging.INFO, "Going away for 1 hour.")
+        time.sleep(60 * 60)
+
+    # @override (when we get to 3.12)
+    def buttonbox(self):
+        """The buttons at the bottom of the dialog.
+
+        This is overridden to add a "Go away" button.
+        """
+        box = tk.Frame(self)
+
+        w = tk.Button(box, text="OK", width=10, command=self.ok, default=tk.ACTIVE)
+        w.pack(side=tk.LEFT, padx=5, pady=5)
+        w = tk.Button(box, text="Cancel", width=10, command=self.cancel)
+        w.pack(side=tk.LEFT, padx=5, pady=5)
+        w = tk.Button(
+            box,
+            text="Go away (1h)",
+            width=10,
+            command=self.go_away,
+            bg="#913831",
+            fg="white",
+            activebackground="#732a25",
+            activeforeground="white",
+        )
+        w.pack(side=tk.LEFT, padx=5, pady=5)
+
+        self.bind("<Return>", self.ok)
+        self.bind("<Escape>", self.cancel)
+
+        box.pack()
 
 
 def ask_string(title: str, prompt: str, history: list[str]):

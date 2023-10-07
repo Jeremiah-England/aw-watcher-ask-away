@@ -1,4 +1,5 @@
 import logging
+import re
 import time
 import tkinter as tk
 from tkinter import simpledialog, ttk
@@ -80,19 +81,16 @@ class AWAskAwayDialog(simpledialog.Dialog):
         open_link("http://localhost:5600/#/timeline")
 
     def remove_word(self, event=None):  # noqa: ARG002
-        # Split into words and remove the last word
-        words = self.entry.get().split()
-        if words:
-            words.pop()
+        text = self.entry.get()
+        cursor_index = self.entry.index(tk.INSERT)
+        new_before = re.sub(r"\w+\W*$", "", text[:cursor_index])
 
-        # Update the entry content
-        self.entry.delete(0, tk.END)
-        if words:
-            self.entry.insert(0, " ".join(words) + " ")
+        self.entry.delete(0, cursor_index)
+        self.entry.insert(0, new_before)
 
     def remove_to_start(self, event=None):  # noqa: ARG002
-        # TODO: Tehcnically should only remove to the start of the line from where the cursor is.
-        self.entry.delete(0, tk.END)
+        cursor = self.entry.index(tk.INSERT)
+        self.entry.delete(0, cursor)
         self.entry.insert(0, "")
 
     # If you want to retrieve the entered text when the dialog closes:

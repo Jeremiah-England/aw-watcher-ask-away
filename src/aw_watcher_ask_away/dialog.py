@@ -99,8 +99,8 @@ class AWAskAwayDialog(simpledialog.Dialog):
 
     def snooze(self):
         self.cancel()
-        logging.log(logging.INFO, "Snoozing for 1 hour.")
-        time.sleep(60 * 60)
+        logging.log(logging.INFO, "Snoozing for 10 minutes.")
+        time.sleep(60 * 10)
 
     # @override (when we get to 3.12)
     def buttonbox(self):
@@ -116,7 +116,7 @@ class AWAskAwayDialog(simpledialog.Dialog):
         w.pack(side=tk.LEFT, padx=5, pady=5)
 
         # TODO: Figure out a quick easy way to pick how long to snooze for.
-        w = ttk.Button(box, text="Snooze (1h)", command=self.snooze)
+        w = ttk.Button(box, text="Snooze (10m)", command=self.snooze)
         w.pack(side=tk.LEFT, padx=5, pady=5)
 
         self.bind("<Return>", self.ok)

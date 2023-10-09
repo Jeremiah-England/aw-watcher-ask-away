@@ -1,8 +1,13 @@
+import json
 import logging
 import re
 import time
 import tkinter as tk
-from tkinter import simpledialog, ttk
+from collections import UserDict
+from pathlib import Path
+from tkinter import messagebox, simpledialog, ttk
+
+import appdirs
 
 logger = logging.getLogger(__name__)
 
@@ -11,6 +16,37 @@ def open_link(link: str):
     import webbrowser
 
     webbrowser.open(link)
+
+
+class _AbbreviationStore(UserDict[str, str]):
+    """A class to store abbreviations and their expansions.
+
+    And to manage saving this information to the config directory.
+    """
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(self, *args, **kwargs)
+        config_dir = Path(appdirs.user_config_dir("aw-watcher-ask-away"))
+        config_dir.mkdir(parents=True, exist_ok=True)
+        self._config_file = config_dir / "abbreviations.json"
+        self._load_from_config()
+
+    def _load_from_config(self):
+        if self._config_file.exists():
+            with self._config_file.open() as f:
+                try:
+                    self.update(json.load(f))
+                except json.JSONDecodeError:
+                    logger.exception("Failed to load abbreviations from config file.")
+
+    def __setitem__(self, key: str, value: str):
+        self.data[key] = value
+        with self._config_file.open("w") as f:
+            json.dump(self.data, f, indent=4)
+
+
+# Singleton
+abbreviations = _AbbreviationStore()
 
 
 # TODO: This widget pops up off-center when using multiple screes on Linux, possibly other platforms.
@@ -24,6 +60,11 @@ class AWAskAwayDialog(simpledialog.Dialog):
 
     # @override (when we get to 3.12)
     def body(self, master):
+        # Make the whole body a ttk fram as recommended by the tkdocs.com guy.
+        # It should help the formatting be more consistent with the ttk children widgets.
+        master = ttk.Frame(master)
+        master.grid()
+
         # Prompt
         # Copied from the simpledialog source code.
         w = ttk.Label(master, text=self.prompt, justify=tk.LEFT)
@@ -57,7 +98,46 @@ class AWAskAwayDialog(simpledialog.Dialog):
         self.bind("<Control-j>", self.next_entry)
         self.bind("<Control-k>", self.previous_entry)
 
+        # Expand abbreviations the user types
+        self.entry.bind("<KeyRelease>", self.expand_abbreviations)
+
+        # Add a new abbreviation from a highlighted section of text.
+        self.entry.bind("<Control-n>", self.save_new_abbreviation)
+        # TODO: Add a way to remove unwanted abbreviations.
+        # What if someone uses "a" without thinking?
+
         return self.entry
+
+    def save_new_abbreviation(self, event=None):  # noqa: ARG002
+        # Get the highlighted Text
+        highlighted_text = self.entry.selection_get().strip()
+        result = simpledialog.askstring(
+            "Set Abbreviation", "What would you like to abbreviate this as?", parent=self, initialvalue=highlighted_text
+        )
+        if result:
+            result = result.strip()
+            if not re.fullmatch(r"\w+", result):
+                messagebox.showerror("Invalid abbreviation", "Abbreviations must be alphanumeric.")
+                return
+
+            if existing := abbreviations.get(result):
+                if not messagebox.askyesno(
+                    f"That abbreviation ({result}) already exists as '{existing}', would you like to over write?"
+                ):
+                    return
+            abbreviations[result] = highlighted_text
+
+    def expand_abbreviations(self, event=None):  # noqa: ARG002
+        text = self.entry.get()
+        cursor_index = self.entry.index(tk.INSERT)
+
+        # Get the potential appreviation
+        abbr_regex = r"(\w+)\s$"
+        abbr = re.search(abbr_regex, text[:cursor_index])
+        if abbr and abbr.group(1) in abbreviations:
+            before_index = len(re.sub(abbr_regex, "", text[:cursor_index]))
+            self.entry.delete(before_index, cursor_index - 1)
+            self.entry.insert(before_index, abbreviations[abbr.group(1)])
 
     def set_text(self, text: str):
         self.entry.delete(0, tk.END)
@@ -95,7 +175,7 @@ class AWAskAwayDialog(simpledialog.Dialog):
 
     # If you want to retrieve the entered text when the dialog closes:
     def apply(self):
-        self.result = self.entry.get()
+        self.result = self.entry.get().strip()
 
     def snooze(self):
         self.cancel()

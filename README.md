@@ -20,6 +20,7 @@ pipx install aw-watcher-ask-away
 Most of the improvements involve a more complicated pop-up window.
 
 - Add common things people do when AFK to check boxes or something so everyone is not typing "bathroom" all the time.
+  Make these "abbreviations" like fish or configurable keyboard shortcuts.
   Make this configurable from the pop-up window but seed it with some good defaults.
 - Use something besides `tkinter`.
   Many useful text editing bindings are missing from the simple dialogue currently in use (e.g. Ctrl + Backspace for deleting a word).

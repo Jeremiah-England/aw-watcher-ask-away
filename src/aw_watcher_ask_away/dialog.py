@@ -11,6 +11,9 @@ import appdirs
 
 logger = logging.getLogger(__name__)
 
+root = tk.Tk()
+root.withdraw()
+
 
 def open_link(link: str):
     import webbrowser
@@ -56,7 +59,7 @@ class AWAskAwayDialog(simpledialog.Dialog):
         self.prompt = prompt
         self.history = history
         self.history_index = len(history)
-        super().__init__(None, title)
+        super().__init__(root, title)
 
     # @override (when we get to 3.12)
     def body(self, master):

@@ -1,9 +1,9 @@
 import json
 import logging
 import re
-import time
 import tkinter as tk
 from collections import UserDict
+from itertools import chain
 from pathlib import Path
 from tkinter import messagebox, simpledialog, ttk
 
@@ -42,10 +42,84 @@ class _AbbreviationStore(UserDict[str, str]):
                 except json.JSONDecodeError:
                     logger.exception("Failed to load abbreviations from config file.")
 
-    def __setitem__(self, key: str, value: str):
-        self.data[key] = value
+    def _save_to_config(self):
         with self._config_file.open("w") as f:
             json.dump(self.data, f, indent=4)
+
+    def __setitem__(self, key: str, value: str):
+        self.data[key] = value
+        self._save_to_config()
+
+    def __delitem__(self, key: str) -> None:
+        super().__delitem__(key)
+        self._save_to_config()
+
+
+class ConfigDialog(simpledialog.Dialog):
+    def __init__(self, master):
+        super().__init__(master, "Configuration")
+
+    def body(self, master):
+        master = ttk.Frame(master)
+        master.grid()
+        notebook = ttk.Notebook(master)
+        notebook.grid(row=1, column=0)
+
+        # Setup abbreviations as a tab
+        abbr_tab = ttk.Frame(notebook)
+        notebook.add(abbr_tab, text="Abbreviations")
+        self.abbr_pane = AbbreviationPane(abbr_tab)
+        self.abbr_pane.grid()
+
+
+class AbbreviationPane(ttk.Frame):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
+        ttk.Label(self, text="Abbr", justify=tk.LEFT).grid(row=0, column=0, sticky=tk.W)
+        ttk.Label(self, text="Expansion", justify=tk.LEFT).grid(row=0, column=1, sticky=tk.W)
+
+        self.new_abbr = ttk.Entry(self)
+        self.new_abbr.grid(row=1, column=0)
+        self.new_expansion = ttk.Entry(self)
+        self.new_expansion.grid(row=1, column=1)
+        ttk.Button(self, text="+", command=self.add_abbreviation).grid(row=1, column=2)
+
+        self.other_rows = []
+
+        self.draw_abbreviations()
+
+    def _make_del_function(self, key):
+        def del_function():
+            abbreviations.pop(key)
+            self.draw_abbreviations()
+
+        return del_function
+
+    def draw_abbreviations(self):
+        for child in chain(*self.other_rows):
+            child.destroy()
+        self.other_rows = []
+
+        for i, (abbr_key, abbr_value) in enumerate(reversed(list(abbreviations.items()))):
+            row_index = i + 2
+            abbr = ttk.Label(self, text=abbr_key, justify=tk.LEFT)
+            abbr.grid(row=row_index, column=0, sticky=tk.W)
+            expansion = ttk.Label(self, text=abbr_value, justify=tk.LEFT)
+            expansion.grid(row=row_index, column=1, sticky=tk.W)
+            button = ttk.Button(self, text="-", command=self._make_del_function(abbr_key))
+            button.grid(row=row_index, column=2)
+            self.other_rows.append((abbr, expansion, button))
+
+    def add_abbreviation(self):
+        abbr = self.new_abbr.get()
+        expansion = self.new_expansion.get()
+        if not abbr or not expansion:
+            return
+        abbreviations[abbr] = expansion
+        self.new_abbr.delete(0, tk.END)
+        self.new_expansion.delete(0, tk.END)
+        self.draw_abbreviations()
 
 
 # Singleton
@@ -180,10 +254,8 @@ class AWAskAwayDialog(simpledialog.Dialog):
     def apply(self):
         self.result = self.entry.get().strip()
 
-    def snooze(self):
-        self.cancel()
-        logging.log(logging.INFO, "Snoozing for 10 minutes.")
-        time.sleep(60 * 10)
+    def open_config(self):
+        ConfigDialog(self)
 
     # @override (when we get to 3.12)
     def buttonbox(self):
@@ -199,7 +271,7 @@ class AWAskAwayDialog(simpledialog.Dialog):
         w.pack(side=tk.LEFT, padx=5, pady=5)
 
         # TODO: Figure out a quick easy way to pick how long to snooze for.
-        w = ttk.Button(box, text="Snooze (10m)", command=self.snooze)
+        w = ttk.Button(box, text="Settings", command=self.open_config)
         w.pack(side=tk.LEFT, padx=5, pady=5)
 
         self.bind("<Return>", self.ok)

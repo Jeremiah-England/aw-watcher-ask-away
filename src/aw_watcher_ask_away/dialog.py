@@ -180,8 +180,6 @@ class AWAskAwayDialog(simpledialog.Dialog):
 
         # Add a new abbreviation from a highlighted section of text.
         self.entry.bind("<Control-n>", self.save_new_abbreviation)
-        # TODO: Add a way to remove unwanted abbreviations.
-        # What if someone uses "a" without thinking?
 
         return self.entry
 

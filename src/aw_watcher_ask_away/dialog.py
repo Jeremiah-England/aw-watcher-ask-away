@@ -187,6 +187,7 @@ class AWAskAwayDialog(simpledialog.Dialog):
 
     def save_new_abbreviation(self, event=None):  # noqa: ARG002
         # Get the highlighted Text
+        # TODO: If nothing was highlighted use the word the cursor is in or maybe to the beginning of the line.
         highlighted_text = self.entry.selection_get().strip()
         result = simpledialog.askstring(
             "Set Abbreviation", "What would you like to abbreviate this as?", parent=self, initialvalue=highlighted_text

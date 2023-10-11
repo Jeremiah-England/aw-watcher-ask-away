@@ -58,9 +58,6 @@ def get_gaps(events: list[aw_core.Event]):
             yield aw_core.Event(None, first_end, second.timestamp - first_end)
 
 
-# TODO: This class needs to be unit testable.
-# There are a lot of edge casesto handle.
-# Also need to update the debug logs so it is trivial to create unit tests from issues that happen.
 class AWAskAwayClient:
     def __init__(self, client: ActivityWatchClient):
         self.client = client

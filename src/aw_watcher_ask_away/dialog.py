@@ -72,6 +72,30 @@ class ConfigDialog(simpledialog.Dialog):
         self.abbr_pane.grid()
 
 
+class AddAbbreviationDialog(simpledialog.Dialog):
+    def __init__(self, master, expansion: str | None = None):
+        self.expansion_value = expansion
+        super().__init__(master, "Add Abbreviation")
+
+    def body(self, master):
+        master = ttk.Frame(master)
+        master.grid()
+
+        ttk.Label(master, text="Abbreviation").grid(row=0, column=0)
+        ttk.Label(master, text="Expansion").grid(row=1, column=0)
+
+        self.abbr = ttk.Entry(master)
+        self.abbr.grid(row=0, column=1)
+        self.expansion = ttk.Entry(master)
+        if self.expansion_value:
+            self.expansion.insert(0, self.expansion_value)
+        self.expansion.grid(row=1, column=1)
+        return self.abbr
+
+    def apply(self):
+        self.result = (self.abbr.get(), self.expansion.get())
+
+
 class AbbreviationPane(ttk.Frame):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -101,7 +125,7 @@ class AbbreviationPane(ttk.Frame):
             child.destroy()
         self.other_rows = []
 
-        for i, (abbr_key, abbr_value) in enumerate(reversed(list(abbreviations.items()))):
+        for i, (abbr_key, abbr_value) in enumerate(sorted(abbreviations.items())):
             row_index = i + 2
             abbr = ttk.Label(self, text=abbr_key, justify=tk.LEFT)
             abbr.grid(row=row_index, column=0, sticky=tk.W)
@@ -181,34 +205,43 @@ class AWAskAwayDialog(simpledialog.Dialog):
         # Add a new abbreviation from a highlighted section of text.
         self.entry.bind("<Control-n>", self.save_new_abbreviation)
 
+        self.bind("<Control-comma>", self.open_config)
+
         return self.entry
 
     def save_new_abbreviation(self, event=None):  # noqa: ARG002
         # Get the highlighted Text
-        # TODO: If nothing was highlighted use the word the cursor is in or maybe to the beginning of the line.
-        highlighted_text = self.entry.selection_get().strip()
-        result = simpledialog.askstring(
-            "Set Abbreviation", "What would you like to abbreviate this as?", parent=self, initialvalue=highlighted_text
-        )
+        if self.entry.selection_present():
+            initial_expansion = self.entry.selection_get().strip()
+        else:
+            cursor_index = self.entry.index(tk.INSERT)
+            initial_expansion = self.entry.get()[:cursor_index].strip()
+
+        # Prompt for the abbreviation
+        result = AddAbbreviationDialog(self, initial_expansion).result
+
         if result:
-            result = result.strip()
-            if not re.fullmatch(r"\w+", result):
+            abbr, expansion = result
+            abbr = abbr.strip()
+            expansion = expansion.strip()
+            if not re.fullmatch(r"\w+", abbr):
                 messagebox.showerror("Invalid abbreviation", "Abbreviations must be alphanumeric.")
                 return
 
-            if existing := abbreviations.get(result):
+            if existing := abbreviations.get(abbr):
                 if not messagebox.askyesno(
-                    f"That abbreviation ({result}) already exists as '{existing}', would you like to over write?"
+                    "Overwrite confirmation",
+                    f"That abbreviation ({abbr}) already exists as '{existing}', would you like to over write?",
                 ):
                     return
-            abbreviations[result] = highlighted_text
+            abbreviations[abbr] = expansion
 
     def expand_abbreviations(self, event=None):  # noqa: ARG002
         text = self.entry.get()
         cursor_index = self.entry.index(tk.INSERT)
 
         # Get the potential appreviation
-        abbr_regex = r"(\w+)\s$"
+        abbr_regex = r"(['\w]+)\s$"  # Include ' so if you has s as an abbreviation "what's" doesn't expand to what is.
         abbr = re.search(abbr_regex, text[:cursor_index])
         if abbr and abbr.group(1) in abbreviations:
             before_index = len(re.sub(abbr_regex, "", text[:cursor_index]))
@@ -253,7 +286,7 @@ class AWAskAwayDialog(simpledialog.Dialog):
     def apply(self):
         self.result = self.entry.get().strip()
 
-    def open_config(self):
+    def open_config(self, event=None):  # noqa: ARG002
         ConfigDialog(self)
 
     # @override (when we get to 3.12)

@@ -186,6 +186,7 @@ class AWAskAwayDialog(simpledialog.Dialog):
         issue_label.bind("<Button-1>", self.open_an_issue)
 
         # Text editing shortcuts
+        # TODO: Wrap the Entry widget so we can reuse these in other dialogs.
         self.bind("<Control-BackSpace>", self.remove_word)
         self.bind("<Control-u>", self.remove_to_start)
         self.bind("<Control-w>", self.remove_word)

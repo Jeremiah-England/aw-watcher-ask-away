@@ -205,18 +205,32 @@ class AWAskAwayDialog(simpledialog.Dialog):
 
         # Add a new abbreviation from a highlighted section of text.
         self.entry.bind("<Control-n>", self.save_new_abbreviation)
+        self.entry.bind("<Control-N>", lambda e: self.save_new_abbreviation(e, long=True))
 
         self.bind("<Control-comma>", self.open_config)
 
         return self.entry
 
-    def save_new_abbreviation(self, event=None):  # noqa: ARG002
-        # Get the highlighted Text
+    def save_new_abbreviation(self, event=None, *, long: bool = False):  # noqa: ARG002
         if self.entry.selection_present():
+            # Get the highlighted Text
             initial_expansion = self.entry.selection_get().strip()
-        else:
+        elif long:
+            # Get all the text before the cursor
             cursor_index = self.entry.index(tk.INSERT)
             initial_expansion = self.entry.get()[:cursor_index].strip()
+        else:
+            # Get the word under or before the cursor
+            cursor_index = self.entry.index(tk.INSERT)
+            words = re.split(r"(\W+)", self.entry.get())
+            char_count = 0
+            initial_expansion = ""
+            for word in words:
+                char_count += len(word)
+                if re.fullmatch(r"\w+", word):
+                    initial_expansion = word
+                if char_count >= cursor_index:
+                    break
 
         # Prompt for the abbreviation
         result = AddAbbreviationDialog(self, initial_expansion).result

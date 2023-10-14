@@ -159,6 +159,11 @@ class AWAskAwayState:
         ]
         logger.debug(f"Checking for unseen in: {events_log}")
 
+        # Filter out events that have zero length. Sometimes a zero length not-afk event is generated if you open
+        # up your computer from being suspended but don't do anything with it. This event is overwritten soon and
+        # doesn't exist in later queries. If we don't filter them out we can ask the user to fill the time in twice.
+        events = [e for e in events if e.duration.total_seconds() > 0]
+
         # Use gaps in non-afk events instead of the afk-events themselves to handle when the computer
         # is suspended or powered off.
         non_afk_events = squash_overlaps([e for e in events if not is_afk(e)])

@@ -96,6 +96,7 @@ class AddAbbreviationDialog(simpledialog.Dialog):
         self.result = (self.abbr.get(), self.expansion.get())
 
 
+# TODO: Link the abbreviations json file for editing directly.
 class AbbreviationPane(ttk.Frame):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -125,6 +126,7 @@ class AbbreviationPane(ttk.Frame):
             child.destroy()
         self.other_rows = []
 
+        # TODO: Add some kind of scroll bar if there are too many abbreviations.
         for i, (abbr_key, abbr_value) in enumerate(sorted(abbreviations.items())):
             row_index = i + 2
             abbr = ttk.Label(self, text=abbr_key, justify=tk.LEFT)

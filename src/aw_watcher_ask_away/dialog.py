@@ -240,7 +240,7 @@ class AWAskAwayDialog(simpledialog.Dialog):
             abbr = abbr.strip()
             expansion = expansion.strip()
             if not re.fullmatch(r"\w+", abbr):
-                messagebox.showerror("Invalid abbreviation", "Abbreviations must be alphanumeric.")
+                messagebox.showerror("Invalid abbreviation", "Abbreviations must be alphanumeric and without spaces.")
                 return
 
             if existing := abbreviations.get(abbr):

@@ -251,6 +251,9 @@ class AWAskAwayDialog(simpledialog.Dialog):
                     return
             abbreviations[abbr] = expansion
 
+        # Refocus on the main text entry
+        self.entry.focus_set()
+
     def expand_abbreviations(self, event=None):  # noqa: ARG002
         text = self.entry.get()
         cursor_index = self.entry.index(tk.INSERT)

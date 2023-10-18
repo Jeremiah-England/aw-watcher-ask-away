@@ -19,12 +19,9 @@ pipx install aw-watcher-ask-away
 
 Most of the improvements involve a more complicated pop-up window.
 
-- Add common things people do when AFK to check boxes or something so everyone is not typing "bathroom" all the time.
-  Make these "abbreviations" like fish or configurable keyboard shortcuts.
-  Make this configurable from the pop-up window but seed it with some good defaults.
-- Use something besides `tkinter`.
-  Many useful text editing bindings are missing from the simple dialogue currently in use (e.g. Ctrl + Backspace for deleting a word).
-- Handle calls better/stop asking what you were doing every couple minutes when in a call. See
+- Use `pyinstaller` or something for distribution to people who are not developers and know how to install things from PyPI.
+  - Set up a website, probably with a GitHub organization.
+- Handle calls better/stop asking what you were doing every couple minutes when in a call.
 - See whether people would rather add data to AFK events instead of creating a separate bucket. Maybe make that an option/configurable.
 
 ## Contributing

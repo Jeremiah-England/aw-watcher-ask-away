@@ -101,14 +101,32 @@ class AbbreviationPane(ttk.Frame):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
-        ttk.Label(self, text="Abbr", justify=tk.LEFT).grid(row=0, column=0, sticky=tk.W)
-        ttk.Label(self, text="Expansion", justify=tk.LEFT).grid(row=0, column=1, sticky=tk.W)
+        # Set up a canvas so we can get a scroll bar.
+        # TODO: Think of a better way to display these abbreviations?
+        self.canvas = tk.Canvas(self, borderwidth=0, background="#ffffff")
+        self.canvas.grid(row=0, column=0, sticky=tk.N + tk.S + tk.E + tk.W)
+        self.scrollbar = ttk.Scrollbar(self, orient=tk.VERTICAL, command=self.canvas.yview)
+        self.scrollbar.grid(row=0, column=1, sticky=tk.N + tk.S)
+        self.canvas.configure(yscrollcommand=self.scrollbar.set)
+        self.canvas.bind("<Configure>", lambda _: self.canvas.configure(scrollregion=self.canvas.bbox("all")))
+        self.canvas.bind_all("<MouseWheel>", lambda e: self.canvas.yview_scroll(int(-1 * (e.delta / 120)), "units"))
+        # enable scroll on a track pad
+        self.canvas.bind_all("<Button-4>", lambda _: self.canvas.yview_scroll(-1, "units"))
+        self.canvas.bind_all("<Button-5>", lambda _: self.canvas.yview_scroll(1, "units"))
 
-        self.new_abbr = ttk.Entry(self)
+        self.frame = ttk.Frame(self.canvas)
+        self.frame.grid(row=0, column=0, sticky=tk.N + tk.S + tk.E + tk.W)
+
+        self.canvas.create_window((0, 0), window=self.frame, anchor="nw")
+
+        ttk.Label(self.frame, text="Abbr", justify=tk.LEFT).grid(row=0, column=0, sticky=tk.W)
+        ttk.Label(self.frame, text="Expansion", justify=tk.LEFT).grid(row=0, column=1, sticky=tk.W)
+
+        self.new_abbr = ttk.Entry(self.frame)
         self.new_abbr.grid(row=1, column=0)
-        self.new_expansion = ttk.Entry(self)
+        self.new_expansion = ttk.Entry(self.frame)
         self.new_expansion.grid(row=1, column=1)
-        ttk.Button(self, text="+", command=self.add_abbreviation).grid(row=1, column=2)
+        ttk.Button(self.frame, text="+", command=self.add_abbreviation).grid(row=1, column=2)
 
         self.other_rows = []
 
@@ -129,11 +147,11 @@ class AbbreviationPane(ttk.Frame):
         # TODO: Add some kind of scroll bar if there are too many abbreviations.
         for i, (abbr_key, abbr_value) in enumerate(sorted(abbreviations.items())):
             row_index = i + 2
-            abbr = ttk.Label(self, text=abbr_key, justify=tk.LEFT)
+            abbr = ttk.Label(self.frame, text=abbr_key, justify=tk.LEFT)
             abbr.grid(row=row_index, column=0, sticky=tk.W)
-            expansion = ttk.Label(self, text=abbr_value, justify=tk.LEFT)
+            expansion = ttk.Label(self.frame, text=abbr_value, justify=tk.LEFT)
             expansion.grid(row=row_index, column=1, sticky=tk.W)
-            button = ttk.Button(self, text="-", command=self._make_del_function(abbr_key))
+            button = ttk.Button(self.frame, text="-", command=self._make_del_function(abbr_key))
             button.grid(row=row_index, column=2)
             self.other_rows.append((abbr, expansion, button))
 

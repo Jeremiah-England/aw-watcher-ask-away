@@ -1,6 +1,7 @@
 import json
 import logging
 import re
+import time
 import tkinter as tk
 from collections import UserDict
 from itertools import chain
@@ -332,6 +333,9 @@ class AWAskAwayDialog(simpledialog.Dialog):
         # The process should wait on the destroy instead of the human.
         self.withdraw()
         self.destroy()
+        # Wait a minute so we do not spam the user with the prompt again in like 5 seconds.
+        # TODO: Make this configurable in the settings dialog.
+        time.sleep(60)
 
     # @override (when we get to 3.12)
     def buttonbox(self):

@@ -327,6 +327,12 @@ class AWAskAwayDialog(simpledialog.Dialog):
     def open_config(self, event=None):  # noqa: ARG002
         ConfigDialog(self)
 
+    def cancel(self, event=None):  # noqa: ARG002
+        # Call withdraw first because it is faster.
+        # The process should wait on the destroy instead of the human.
+        self.withdraw()
+        self.destroy()
+
     # @override (when we get to 3.12)
     def buttonbox(self):
         """The buttons at the bottom of the dialog.

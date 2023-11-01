@@ -145,9 +145,10 @@ class AbbreviationPane(ttk.Frame):
             child.destroy()
         self.other_rows = []
 
-        # TODO: Add some kind of scroll bar if there are too many abbreviations.
         for i, (abbr_key, abbr_value) in enumerate(sorted(abbreviations.items())):
             row_index = i + 2
+            # TODO: Allow _editing_ abbreviations in place instead of remove and re-add.
+            # Maybe by using a readonly entry and double clicking to activate it?
             abbr = ttk.Label(self.frame, text=abbr_key, justify=tk.LEFT)
             abbr.grid(row=row_index, column=0, sticky=tk.W)
             expansion = ttk.Label(self.frame, text=abbr_value, justify=tk.LEFT)

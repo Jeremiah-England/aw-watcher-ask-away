@@ -22,7 +22,6 @@ from aw_watcher_ask_away.core import (
 
 def prompt(event: aw_core.Event, recent_events: Iterable[aw_core.Event]):
     # TODO: Allow for customizing the prompt from the prompt interface.
-    # TODO: Figure how why standard text editing keyboard shortcuts do not work. Maybe use something besides tkinter.
     start_time_str = event.timestamp.astimezone(LOCAL_TIMEZONE).strftime("%I:%M")
     end_time_str = (event.timestamp + event.duration).astimezone(LOCAL_TIMEZONE).strftime("%I:%M")
     prompt = f"What were you doing from {start_time_str} - {end_time_str} ({event.duration.seconds / 60:.1f} minutes)?"

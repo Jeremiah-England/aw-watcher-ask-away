@@ -17,7 +17,7 @@ classifiers = [
   "Programming Language :: Python :: 3.11",
   "Programming Language :: Python :: Implementation :: CPython",
 ]
-dependencies = ["aw-client", "appdirs"]
+dependencies = ["aw-client", "aw-core", "appdirs"]
 
 [project.scripts]
 aw-watcher-ask-away = "aw_watcher_ask_away.__main__:main"

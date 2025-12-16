@@ -15,6 +15,50 @@ pipx install aw-watcher-ask-away
 
 ([Need to install `pipx` first?](https://pypa.github.io/pipx/installation/))
 
+## Running
+
+### Recommended: Using aw-qt
+
+The recommended way to run this watcher is through [aw-qt](https://github.com/ActivityWatch/aw-qt), which manages both the server and watchers automatically. After installing aw-watcher-ask-away, aw-qt should detect and start it automatically.
+
+### Alternative: Manual Start
+
+If not using aw-qt, you can run it manually:
+```console
+aw-watcher-ask-away
+```
+
+Make sure `aw-server` and `aw-watcher-afk` are running first, as this watcher monitors AFK events.
+
+### Alternative: systemd (Linux)
+
+For users not using aw-qt who want automatic startup via systemd:
+
+**Quick setup with Makefile:**
+```console
+make enable-service
+```
+
+**For Wayland users, also run:**
+```console
+make setup-wayland
+```
+
+This automatically configures your compositor to import the WAYLAND_DISPLAY environment variable.
+
+**Manual setup (if preferred):**
+```console
+cp misc/aw-watcher-ask-away.service ~/.config/systemd/user/
+systemctl --user daemon-reload
+systemctl --user enable aw-watcher-ask-away.service
+systemctl --user start aw-watcher-ask-away.service
+```
+
+For Wayland, manually add to your compositor config:
+```
+exec systemctl --user import-environment WAYLAND_DISPLAY
+```
+
 ## Roadmap
 
 Most of the improvements involve a more complicated pop-up window.

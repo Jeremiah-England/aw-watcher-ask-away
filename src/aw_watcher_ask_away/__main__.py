@@ -10,6 +10,7 @@ from aw_core.log import setup_logging
 from requests.exceptions import ConnectionError
 
 import aw_watcher_ask_away.dialog as aw_dialog
+from aw_watcher_ask_away.config import load_config
 from aw_watcher_ask_away.core import (
     DATA_KEY,
     LOCAL_TIMEZONE,
@@ -27,10 +28,10 @@ def prompt(event: aw_core.Event, recent_events: Iterable[aw_core.Event]):
     prompt = f"What were you doing from {start_time_str} - {end_time_str} ({event.duration.seconds / 60:.1f} minutes)?"
     title = "AFK Checkin"
 
-    return aw_dialog.ask_string(title, prompt, [event.data[DATA_KEY] for event in recent_events])
+    return aw_dialog.ask_string(title, prompt, [event.data.get(DATA_KEY, '') for event in recent_events])
 
 
-def get_state_retries(client: ActivityWatchClient):
+def get_state_retries(client: ActivityWatchClient, enable_lid_events: bool = True):
     """When the computer is starting up sometimes the aw-server is not ready for requests yet.
 
     So we sit and retry for a while before giving up.
@@ -39,7 +40,7 @@ def get_state_retries(client: ActivityWatchClient):
         try:
             # This works because the constructor of AWAskAwayState tries to get bucket names.
             # If it didn't we'd need to do something else here.
-            return AWAskAwayClient(client)
+            return AWAskAwayClient(client, enable_lid_events=enable_lid_events)
         except ConnectionError:
             logger.exception("Cannot connect to client.")
             time.sleep(10)  # 10 * 10 = wait for 100s before giving up.
@@ -47,15 +48,27 @@ def get_state_retries(client: ActivityWatchClient):
 
 
 def main():
+    # Load config from file (falls back to defaults if file doesn't exist)
+    config = load_config()
+
     parser = argparse.ArgumentParser()
     parser.add_argument(
-        "--depth", type=float, default=10, help="The number of minutes to look into the past for events."
+        "--depth",
+        type=float,
+        default=config.get("depth", 10),
+        help="The number of minutes to look into the past for events. (default: from config or 10)",
     )
     parser.add_argument(
-        "--frequency", type=float, default=5, help="The number of seconds to wait before checking for AFK events again."
+        "--frequency",
+        type=float,
+        default=config.get("frequency", 5),
+        help="The number of seconds to wait before checking for AFK events again. (default: from config or 5)",
     )
     parser.add_argument(
-        "--length", type=float, default=5, help="The number of minutes you need to be away before reporting on it."
+        "--length",
+        type=float,
+        default=config.get("length", 5),
+        help="The number of minutes you need to be away before reporting on it. (default: from config or 5)",
     )
     parser.add_argument("--testing", action="store_true", help="Run in testing mode.")
     parser.add_argument("--verbose", action="store_true", help="I want to see EVERYTHING!")
@@ -75,7 +88,7 @@ def main():
             client_name=WATCHER_NAME, testing=args.testing
         )
         with client:
-            state = get_state_retries(client)
+            state = get_state_retries(client, enable_lid_events=config.get("enable_lid_events", True))
             logger.info("Successfully connected to the server.")
 
             while True:

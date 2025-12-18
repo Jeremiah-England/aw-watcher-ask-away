@@ -28,7 +28,7 @@ logger = logging.getLogger(__name__)
 
 
 def find_afk_bucket(buckets: dict[str, Any]):
-    match [bucket for bucket in buckets if "afk" in bucket]:
+    match [bucket for bucket in buckets if "afk" in bucket and "lid" not in bucket]:
         case []:
             raise AWWatcherAskAwayError("Cannot find the afk bucket.")
         case [bucket]:
@@ -37,8 +37,25 @@ def find_afk_bucket(buckets: dict[str, Any]):
             raise AWWatcherAskAwayError(f"Found too many afk buckets: {buckets}.")
 
 
+def find_lid_bucket(buckets: dict[str, Any]):
+    """Find the lid watcher bucket (aw-watcher-lid).
+
+    Returns None if not found (lid watcher is optional).
+    """
+    lid_buckets = [bucket for bucket in buckets if "lid" in bucket]
+    if len(lid_buckets) == 0:
+        return None
+    if len(lid_buckets) == 1:
+        return lid_buckets[0]
+    raise AWWatcherAskAwayError(f"Found too many lid buckets: {buckets}.")
+
+
 def is_afk(event: aw_core.Event) -> bool:
-    return event.data["status"] == "afk"
+    """Check if event represents an AFK state.
+
+    Handles both regular AFK ("afk") and system-level AFK ("system-afk" from lid/suspend events).
+    """
+    return event.data["status"] in ("afk", "system-afk")
 
 
 def squash_overlaps(events: list[aw_core.Event]) -> list[aw_core.Event]:
@@ -59,9 +76,10 @@ def get_gaps(events: list[aw_core.Event]):
 
 
 class AWAskAwayClient:
-    def __init__(self, client: ActivityWatchClient):
+    def __init__(self, client: ActivityWatchClient, enable_lid_events: bool = True):
         self.client = client
         self.bucket_id = f"{WATCHER_NAME}_{self.client.client_hostname}"
+        self.enable_lid_events = enable_lid_events
 
         if self.bucket_id not in self._all_buckets:
             # TODO: Look into why aw-watcher-afk uses queued=True here.
@@ -72,6 +90,18 @@ class AWAskAwayClient:
         self.state = AWAskAwayState(recent_events)
 
         self.afk_bucket_id = find_afk_bucket(self._all_buckets)
+
+        # Check for optional lid watcher integration (aw-watcher-lid)
+        # See: https://github.com/tobixen/aw-watcher-lid
+        self.lid_bucket_id = None
+        if enable_lid_events:
+            self.lid_bucket_id = find_lid_bucket(self._all_buckets)
+            if self.lid_bucket_id:
+                logger.info(f"Lid watcher detected: {self.lid_bucket_id}")
+            else:
+                logger.info("Lid watcher not found, will only use regular AFK events")
+        else:
+            logger.info("Lid watcher integration disabled in config")
 
     @cached_property
     def _all_buckets(self):
@@ -84,6 +114,9 @@ class AWAskAwayClient:
     def get_new_afk_events_to_note(self, seconds: float, durration_thresh: float):
         """Check whether we recently finished a large AFK event.
 
+        Fetches events from both regular AFK watcher and lid watcher (if enabled),
+        then merges them to get a complete picture of away time.
+
         Parameters
         ----------
         seconds : float
@@ -92,10 +125,31 @@ class AWAskAwayClient:
             The number of seconds you need to be away before reporting on it.
         """
         try:
-            events = self.client.get_events(self.afk_bucket_id, limit=10)
-            if is_afk(events[0]):  # Currently AFK, wait to bring up the prompt.
-                return
-            yield from self.state.get_unseen_afk_events(events, seconds, durration_thresh)
+            # Fetch regular AFK events
+            afk_events = self.client.get_events(self.afk_bucket_id, limit=10)
+
+            # Fetch lid events if enabled and bucket exists
+            lid_events = []
+            if self.lid_bucket_id:
+                try:
+                    lid_events = self.client.get_events(self.lid_bucket_id, limit=10)
+                except HTTPError:
+                    logger.warning("Failed to get lid events, continuing with AFK events only")
+
+            # Merge and sort events from both sources by timestamp
+            # Note: sort_by_timestamp() sorts in ASCENDING order (oldest first)
+            all_events = aw_transform.sort_by_timestamp(afk_events + lid_events)
+
+            # Check if currently AFK (from either source)
+            # Most recent event is LAST after sorting (ascending order)
+            if all_events:
+                most_recent = all_events[-1]  # Last element is most recent
+                currently_afk = is_afk(most_recent)
+                if currently_afk:
+                    # Currently AFK, wait to bring up the prompt
+                    return
+
+            yield from self.state.get_unseen_afk_events(all_events, seconds, durration_thresh)
         except HTTPError:
             logger.exception("Failed to get events from the server.")
             return

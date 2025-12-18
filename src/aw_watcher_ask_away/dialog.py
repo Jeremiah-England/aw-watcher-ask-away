@@ -293,10 +293,14 @@ class AWAskAwayDialog(simpledialog.Dialog):
         self.entry.insert(0, text)
 
     def previous_entry(self, event=None):  # noqa: ARG002
+        if not self.historiy:
+            return None
         self.history_index = max(0, self.history_index - 1)
         self.set_text(self.history[self.history_index])
 
     def next_entry(self, event=None):  # noqa: ARG002
+        if not self.historiy:
+            return None
         self.history_index = min(len(self.history) - 1, self.history_index + 1)
         self.set_text(self.history[self.history_index])
 

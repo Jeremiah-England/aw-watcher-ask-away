@@ -125,12 +125,19 @@ class AWAskAwayState:
         The second query returns an overlapping 'not-afk' event with a slightly earlier timestamp.
         This duplication + offset combination was causing us to double ask the user for input.
         Using overlaps with a percentage is more robust against this kind of thing.
+
+        Note: We compare overlap against the SMALLER of the two durations because gaps can
+        extend over time as new activity data comes in. If we compared against the new (larger)
+        duration, we'd fail to recognize the same gap and ask the user again.
         """  # noqa: E501
         for recent in self.recent_events:
             overlap_start = max(recent.timestamp, new.timestamp)
             overlap_end = min(recent.timestamp + recent.duration, new.timestamp + new.duration)
             overlap = overlap_end - overlap_start
-            if overlap / new.duration > overlap_thresh:
+            if overlap.total_seconds() <= 0:
+                continue  # No overlap
+            min_duration = min(recent.duration, new.duration)
+            if overlap / min_duration > overlap_thresh:
                 return True
         return False
 

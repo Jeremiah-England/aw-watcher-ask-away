@@ -1,0 +1,50 @@
+########################################
+# aw-watcher-ask-away.service         #
+########################################
+#
+# This service file provides an alternative way to run aw-watcher-ask-away
+# without using aw-qt. The recommended approach is to use aw-qt, which manages
+# both the server and watchers automatically.
+#
+# This watcher shows GUI dialogs when you return from AFK, so it needs access
+# to your display server.
+#
+# Prerequisites:
+# - aw-server must be installed and running
+# - aw-watcher-afk must be running (ask-away monitors AFK events)
+# - This watcher must be installed (pip install aw-watcher-ask-away)
+#
+# Installation for X11 users:
+# 1. Copy service file: cp misc/aw-watcher-ask-away.service ~/.config/systemd/user/
+# 2. Reload systemd: systemctl --user daemon-reload
+# 3. Enable the service: systemctl --user enable aw-watcher-ask-away.service
+# 4. Start the service: systemctl --user start aw-watcher-ask-away.service
+#
+# Additional setup for Wayland users:
+# - Add to your compositor startup script (e.g., ~/.config/sway/config):
+#   exec systemctl --user import-environment WAYLAND_DISPLAY
+# - This ensures the service can access your Wayland display
+#
+# The watcher will automatically retry connection to aw-server if it's not ready yet.
+#
+
+[Unit]
+Description=ActivityWatch AFK Questionnaire Watcher
+Documentation=https://github.com/Jeremiah-England/aw-watcher-ask-away
+After=aw-server.service
+# Ensure we run within a graphical session
+After=graphical-session.target
+
+[Service]
+Type=simple
+ExecStart=aw-watcher-ask-away
+Restart=on-failure
+RestartSec=10
+Environment=PYTHONUNBUFFERED=1
+# Set DISPLAY for X11 users (Wayland users should import WAYLAND_DISPLAY)
+Environment="DISPLAY=:0"
+# Note: For Wayland, also run: systemctl --user import-environment WAYLAND_DISPLAY
+# Add this command to your compositor/session startup script
+
+[Install]
+WantedBy=default.target

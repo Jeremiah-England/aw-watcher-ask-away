@@ -175,10 +175,14 @@ abbreviations = _AbbreviationStore()
 # TODO: This widget pops up off-center when using multiple screes on Linux, possibly other platforms.
 # See https://stackoverflow.com/questions/30312875/tkinter-winfo-screenwidth-when-used-with-dual-monitors/57866046#57866046
 class AWAskAwayDialog(simpledialog.Dialog):
-    def __init__(self, title: str, prompt: str, history: list[str]) -> None:
+    def __init__(self, title: str, prompt: str, history: list[str],
+                 afk_start=None, afk_duration_seconds=None) -> None:
         self.prompt = prompt
         self.history = history
         self.history_index = len(history)
+        self.afk_start = afk_start
+        self.afk_duration_seconds = afk_duration_seconds
+        self.split_mode = False  # Track if user wants split mode
         super().__init__(root, title)
 
     # @override (when we get to 3.12)
@@ -210,8 +214,10 @@ class AWAskAwayDialog(simpledialog.Dialog):
         # Text editing shortcuts
         # TODO: Wrap the Entry widget so we can reuse these in other dialogs.
         self.bind("<Control-BackSpace>", self.remove_word)
-        self.bind("<Control-u>", self.remove_to_start)
         self.bind("<Control-w>", self.remove_word)
+
+        # Quick dismiss as UNKNOWN (Ctrl-U)
+        self.bind("<Control-u>", self.submit_unknown)
 
         # Open web interface shortcut
         self.bind("<Control-o>", self.open_web_interface)
@@ -324,7 +330,17 @@ class AWAskAwayDialog(simpledialog.Dialog):
 
     # If you want to retrieve the entered text when the dialog closes:
     def apply(self):
-        self.result = self.entry.get().strip()
+        text = self.entry.get().strip()
+        if not text:
+            # Don't accept blank entries - show error and keep dialog open
+            messagebox.showerror("Empty Entry", "Please enter a description of what you were doing, or click 'Unknown' to mark as unknown.")
+            return  # Don't close dialog
+        self.result = text
+
+    def submit_unknown(self, event=None):  # noqa: ARG002
+        """Quick dismiss as UNKNOWN."""
+        self.result = "UNKNOWN"
+        self.cancel()
 
     def open_config(self, event=None):  # noqa: ARG002
         ConfigDialog(self)
@@ -334,36 +350,104 @@ class AWAskAwayDialog(simpledialog.Dialog):
         # The process should wait on the destroy instead of the human.
         self.withdraw()
         self.destroy()
+
+    def cancel_with_snooze(self, event=None):  # noqa: ARG002
+        """Cancel button handler - closes dialog and waits 60 seconds."""
+        self.cancel()
         # Wait a minute so we do not spam the user with the prompt again in like 5 seconds.
         # TODO: Make this configurable in the settings dialog.
         time.sleep(60)
+
+    def switch_to_split_mode(self):
+        """Switch to split mode (close this dialog and open split dialog)."""
+        self.split_mode = True
+        self.destroy()
 
     # @override (when we get to 3.12)
     def buttonbox(self):
         """The buttons at the bottom of the dialog.
 
-        This is overridden to add a "snooze" button.
+        This is overridden to add Split, Unknown, and Settings buttons.
         """
         box = ttk.Frame(self)
 
         w = ttk.Button(box, text="OK", width=10, command=self.ok, default=tk.ACTIVE)
         w.pack(side=tk.LEFT, padx=5, pady=5)
-        w = ttk.Button(box, text="Cancel", width=10, command=self.cancel)
+        w = ttk.Button(box, text="Cancel", width=10, command=self.cancel_with_snooze)
         w.pack(side=tk.LEFT, padx=5, pady=5)
+
+        # Unknown button - quick dismiss for forgotten activities (Ctrl-U)
+        w = ttk.Button(box, text="Unknown", width=10, command=self.submit_unknown)
+        w.pack(side=tk.LEFT, padx=5, pady=5)
+
+        # Split button (only show if afk_start and afk_duration_seconds are provided)
+        if self.afk_start is not None and self.afk_duration_seconds is not None:
+            w = ttk.Button(box, text="Split", width=10, command=self.switch_to_split_mode)
+            w.pack(side=tk.LEFT, padx=5, pady=5)
 
         # TODO: Figure out a quick easy way to pick how long to snooze for.
         w = ttk.Button(box, text="Settings", command=self.open_config)
         w.pack(side=tk.LEFT, padx=5, pady=5)
 
         self.bind("<Return>", self.ok)
-        self.bind("<Escape>", self.cancel)
+        self.bind("<Escape>", self.cancel_with_snooze)
 
         box.pack()
 
 
-def ask_string(title: str, prompt: str, history: list[str]):
-    d = AWAskAwayDialog(title, prompt, history)
-    return d.result
+def ask_string(title: str, prompt: str, history: list[str],
+               afk_start=None, afk_duration_seconds=None):
+    """Ask for a string input, with optional split mode support.
+
+    Args:
+        title: Dialog window title
+        prompt: Prompt text to display
+        history: List of previous entries for history navigation
+        afk_start: Start time of AFK period (optional, enables split mode)
+        afk_duration_seconds: Duration of AFK period in seconds (optional)
+
+    Returns:
+        String input from user, or None if cancelled
+        If split mode is activated, returns a special marker to indicate
+        the calling code should use ask_split_activities instead.
+    """
+    # Loop to handle switching between single and split modes
+    initial_text = None
+    while True:
+        d = AWAskAwayDialog(title, prompt, history, afk_start, afk_duration_seconds)
+
+        # If returning from split mode, pre-fill the text
+        if initial_text:
+            d.entry.delete(0, tk.END)
+            d.entry.insert(0, initial_text)
+            initial_text = None
+
+        # Wait for dialog to close
+        # (AWAskAwayDialog.__init__ calls wait_window internally via Dialog.__init__)
+
+        # Check if user clicked Split button
+        if d.split_mode:
+            # Import here to avoid circular dependency
+            from aw_watcher_ask_away.split_dialog import ask_split_activities
+
+            # Show split dialog
+            result = ask_split_activities(title, prompt, afk_start,
+                                             afk_duration_seconds, history)
+
+            # Check what the split dialog returned
+            if result is None:
+                return None  # Cancelled in split mode
+            elif isinstance(result, str):
+                # User removed activities down to 1 - return to single mode
+                logger.info(f"Returning to single mode with description: '{result}'")
+                initial_text = result
+                continue  # Loop back to show main dialog again
+            else:
+                # List of activities - return as split mode
+                return ("SPLIT_MODE", result)
+
+        # Normal mode - return the result
+        return d.result
 
 
 if __name__ == "__main__":

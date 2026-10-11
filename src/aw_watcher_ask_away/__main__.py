@@ -30,7 +30,7 @@ def prompt(event: aw_core.Event, recent_events: Iterable[aw_core.Event]):
     return aw_dialog.ask_string(title, prompt, [event.data[DATA_KEY] for event in recent_events])
 
 
-def get_state_retries(client: ActivityWatchClient):
+def get_state_retries(client: ActivityWatchClient, *, mirror_to_stopwatch: bool = True):
     """When the computer is starting up sometimes the aw-server is not ready for requests yet.
 
     So we sit and retry for a while before giving up.
@@ -39,7 +39,7 @@ def get_state_retries(client: ActivityWatchClient):
         try:
             # This works because the constructor of AWAskAwayState tries to get bucket names.
             # If it didn't we'd need to do something else here.
-            return AWAskAwayClient(client)
+            return AWAskAwayClient(client, mirror_to_stopwatch=mirror_to_stopwatch)
         except ConnectionError:
             logger.exception("Cannot connect to client.")
             time.sleep(10)  # 10 * 10 = wait for 100s before giving up.
@@ -56,6 +56,16 @@ def main():
     )
     parser.add_argument(
         "--length", type=float, default=5, help="The number of minutes you need to be away before reporting on it."
+    )
+    parser.add_argument(
+        "--no-stopwatch",
+        action="store_true",
+        help="Don't mirror answers into a stopwatch bucket (which makes them count in the Activity view).",
+    )
+    parser.add_argument(
+        "--backfill-stopwatch",
+        action="store_true",
+        help="Mirror previously logged answers into the stopwatch bucket, then exit.",
     )
     parser.add_argument("--testing", action="store_true", help="Run in testing mode.")
     parser.add_argument("--verbose", action="store_true", help="I want to see EVERYTHING!")
@@ -75,8 +85,15 @@ def main():
             client_name=WATCHER_NAME, testing=args.testing
         )
         with client:
-            state = get_state_retries(client)
+            state = get_state_retries(client, mirror_to_stopwatch=not args.no_stopwatch)
             logger.info("Successfully connected to the server.")
+
+            if args.backfill_stopwatch:
+                if args.no_stopwatch:
+                    parser.error("--backfill-stopwatch cannot be combined with --no-stopwatch.")
+                added = state.backfill_stopwatch()
+                logger.info(f"Backfilled {added} event(s) into {state.stopwatch_bucket_id}.")
+                return
 
             while True:
                 for event in state.get_new_afk_events_to_note(

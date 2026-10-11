@@ -17,6 +17,10 @@ WATCHER_NAME = "aw-watcher-ask-away"
 LOCAL_TIMEZONE = datetime.datetime.now().astimezone().tzinfo
 DATA_KEY = "message"
 """What field in the event data to store the user's message in."""
+STOPWATCH_BUCKET_PREFIX = f"{WATCHER_NAME}-stopwatch"
+"""Prefix of the bucket that answers are mirrored to so the Activity view counts them."""
+STOPWATCH_APP_NAME = "Away"
+"""The `app` value mirrored events show up under in the Activity view."""
 
 
 class AWWatcherAskAwayError(Exception):
@@ -58,14 +62,32 @@ def get_gaps(events: list[aw_core.Event]):
             yield aw_core.Event(None, first_end, second.timestamp - first_end)
 
 
+def to_stopwatch_event(event: aw_core.Event, message: str) -> aw_core.Event:
+    """Convert an answered AFK period into a `general.stopwatch` event.
+
+    The aw-webui Activity view merges stopwatch events into active time (even while AFK, taking priority
+    over window events), which makes logged AFK time show up in Top Applications/Titles and categories.
+    `app` and `title` are set so the event is picked up by those summaries and by category rules.
+    """
+    return aw_core.Event(
+        timestamp=event.timestamp,
+        duration=event.duration,
+        data={"label": message, "running": False, "app": STOPWATCH_APP_NAME, "title": message},
+    )
+
+
 class AWAskAwayClient:
-    def __init__(self, client: ActivityWatchClient):
+    def __init__(self, client: ActivityWatchClient, *, mirror_to_stopwatch: bool = True):
         self.client = client
         self.bucket_id = f"{WATCHER_NAME}_{self.client.client_hostname}"
+        self.stopwatch_bucket_id = f"{STOPWATCH_BUCKET_PREFIX}_{self.client.client_hostname}"
+        self.mirror_to_stopwatch = mirror_to_stopwatch
 
         if self.bucket_id not in self._all_buckets:
             # TODO: Look into why aw-watcher-afk uses queued=True here.
             client.create_bucket(self.bucket_id, event_type="afktask")
+        if self.mirror_to_stopwatch and self.stopwatch_bucket_id not in self._all_buckets:
+            client.create_bucket(self.stopwatch_bucket_id, event_type="general.stopwatch")
 
         recent_events = deque(maxlen=10)
         recent_events.extend(aw_transform.sort_by_timestamp(client.get_events(self.bucket_id, limit=10)))
@@ -80,6 +102,22 @@ class AWAskAwayClient:
     def post_event(self, event: aw_core.Event, message: str):
         self.state.add_event(event, message)
         self.client.insert_event(self.bucket_id, event)
+        if self.mirror_to_stopwatch:
+            try:
+                self.client.insert_event(self.stopwatch_bucket_id, to_stopwatch_event(event, message))
+            except HTTPError:
+                logger.exception("Failed to mirror event to the stopwatch bucket.")
+
+    def backfill_stopwatch(self) -> int:
+        """Mirror previously logged answers that are not yet in the stopwatch bucket. Returns the number added."""
+        existing = {e.timestamp for e in self.client.get_events(self.stopwatch_bucket_id, limit=-1)}
+        added = 0
+        for event in self.client.get_events(self.bucket_id, limit=-1):
+            message = event.data.get(DATA_KEY)
+            if message and event.timestamp not in existing:
+                self.client.insert_event(self.stopwatch_bucket_id, to_stopwatch_event(event, message))
+                added += 1
+        return added
 
     def get_new_afk_events_to_note(self, seconds: float, durration_thresh: float):
         """Check whether we recently finished a large AFK event.

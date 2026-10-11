@@ -15,6 +15,17 @@ pipx install aw-watcher-ask-away
 
 ([Need to install `pipx` first?](https://pypa.github.io/pipx/installation/))
 
+## Seeing your answers in the Activity view
+
+By default, each answer is also mirrored into a `general.stopwatch` bucket (`aw-watcher-ask-away-stopwatch_<hostname>`).
+The ActivityWatch Activity view merges stopwatch events into active time, so logged AFK time shows up under
+Top Applications (as `Away`), Top Window Titles (your answer), the timeline and your categories.
+
+- Requires ActivityWatch v0.14 or newer, where the Activity view includes stopwatch events by default.
+- Mirror answers logged before upgrading: `aw-watcher-ask-away --backfill-stopwatch` (safe to re-run).
+- Opt out with `--no-stopwatch`.
+- Tip: add a category rule (e.g. `Chores` matching `clean|laundry|dishes`) to group answers.
+
 ## Roadmap
 
 Most of the improvements involve a more complicated pop-up window.

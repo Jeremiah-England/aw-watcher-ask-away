@@ -3,7 +3,7 @@ import datetime
 
 import aw_core
 
-from aw_watcher_ask_away.core import AWAskAwayState
+from aw_watcher_ask_away.core import STOPWATCH_APP_NAME, AWAskAwayClient, AWAskAwayState, to_stopwatch_event
 
 AFK = "afk"
 NOT_AFK = "not-afk"
@@ -113,3 +113,57 @@ def test_double_ask_suspend_afk():
     expected_end = datetime.datetime.fromisoformat("2023-10-13T08:47:38.792000-04:00")
     assert second_unseen[0].timestamp == expected_start
     assert second_unseen[0].duration.total_seconds() == (expected_end - expected_start).total_seconds()
+
+
+def test_to_stopwatch_event():
+    afk = _tuple_to_event((60, 300, AFK))
+    sw = to_stopwatch_event(afk, "cleaning")
+    assert sw.timestamp == afk.timestamp
+    assert sw.duration == afk.duration
+    assert sw.data == {"label": "cleaning", "running": False, "app": STOPWATCH_APP_NAME, "title": "cleaning"}
+
+
+class _FakeClient:
+    client_hostname = "testhost"
+
+    def __init__(self, buckets: dict[str, list[aw_core.Event]]):
+        self.buckets = buckets
+
+    def get_buckets(self):
+        return {bid: {} for bid in self.buckets}
+
+    def create_bucket(self, bucket_id, event_type):  # noqa: ARG002
+        self.buckets.setdefault(bucket_id, [])
+
+    def get_events(self, bucket_id, limit=-1):  # noqa: ARG002
+        return list(self.buckets[bucket_id])
+
+    def insert_event(self, bucket_id, event):
+        self.buckets[bucket_id].append(event)
+
+
+def _answered(seconds: int, message: str) -> aw_core.Event:
+    event = _tuple_to_event((seconds, 600, AFK))
+    event.data = {"message": message}
+    return event
+
+
+def test_backfill_stopwatch_is_idempotent():
+    fake = _FakeClient(
+        {
+            "aw-watcher-afk_testhost": [],
+            "aw-watcher-ask-away_testhost": [_answered(0, "lunch"), _answered(1000, "cleaning")],
+        }
+    )
+    client = AWAskAwayClient(fake)
+    assert "aw-watcher-ask-away-stopwatch_testhost" in fake.buckets
+    assert client.backfill_stopwatch() == 2
+    assert client.backfill_stopwatch() == 0
+    labels = sorted(e.data["label"] for e in fake.buckets["aw-watcher-ask-away-stopwatch_testhost"])
+    assert labels == ["cleaning", "lunch"]
+
+
+def test_no_stopwatch_creates_no_bucket():
+    fake = _FakeClient({"aw-watcher-afk_testhost": [], "aw-watcher-ask-away_testhost": []})
+    AWAskAwayClient(fake, mirror_to_stopwatch=False)
+    assert "aw-watcher-ask-away-stopwatch_testhost" not in fake.buckets
